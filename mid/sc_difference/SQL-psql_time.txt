@@ -1,0 +1,25 @@
+EXPLAIN ANALYZE select c.name,count(*) people
+from students
+join colleges c on c.college_id = students.college_id
+group by c.name;
+
+EXPLAIN ANALYZE select c2.name,teacher_name,classtime
+from time_table
+join classes c on time_table.class_id = c.class_id
+join courses c2 on c.course_id = c2.course_id
+where weekday = 3
+order by classtime;
+
+EXPLAIN ANALYZE select name,student_id
+from students
+where gender = 'F' and college_id = 3;
+
+EXPLAIN ANALYZE select avg(cnt)
+from(select college_id, count(*) cnt 
+from students 
+where gender = 'F' 
+group by college_id) x;
+
+EXPLAIN ANALYZE select count(*)
+from students
+where college_id = 5;
