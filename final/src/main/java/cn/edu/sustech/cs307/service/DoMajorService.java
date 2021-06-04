@@ -14,14 +14,24 @@ public class DoMajorService implements MajorService {
     @Override
     public int addMajor(String name, int departmentId) {
         try (Connection connection = SQLDataSource.getInstance().getSQLConnection();
-             PreparedStatement stmt = connection.prepareStatement("insert into major (name, department_id) values (?,?);")) {
+             PreparedStatement stmt = connection.prepareStatement("insert into major (name, department_id) values (?,?);");
+             PreparedStatement SQue = connection.prepareStatement("select id from major where (name, department_id) = (?,?);")) {
             stmt.setString(1, name);
             stmt.setInt(2, departmentId);
+            SQue.setString(1, name);
+            SQue.setInt(2, departmentId);
             stmt.execute();
+            SQue.execute();
+            ResultSet result=SQue.getResultSet();
+            if(result.next()) {
+                return result.getInt(1);
+            }else{
+                //todo raise ERROR
+            }
         } catch (SQLException e) {
             e.printStackTrace();
         }
-        return 0;
+        return -1;
     }
 
     @Override
@@ -67,6 +77,7 @@ public class DoMajorService implements MajorService {
         try (Connection connection = SQLDataSource.getInstance().getSQLConnection();
              PreparedStatement stmt = connection.prepareStatement("select * from major where id = (?);");
              PreparedStatement SQue = connection.prepareStatement("select * from department where id = (?);")) {
+            stmt.setInt(1,majorId);
             stmt.execute();
             ResultSet result=stmt.getResultSet();
             if(result.next()) {

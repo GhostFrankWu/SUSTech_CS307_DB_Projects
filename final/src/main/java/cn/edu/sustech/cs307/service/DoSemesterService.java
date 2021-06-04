@@ -1,14 +1,14 @@
 package cn.edu.sustech.cs307.service;
 
 import cn.edu.sustech.cs307.database.SQLDataSource;
-import cn.edu.sustech.cs307.dto.Department;
-import cn.edu.sustech.cs307.dto.Major;
 import cn.edu.sustech.cs307.dto.Semester;
 
+import javax.annotation.ParametersAreNonnullByDefault;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 
+@ParametersAreNonnullByDefault
 public class DoSemesterService implements SemesterService {
     @Override
     public int addSemester(String name, Date begin, Date end) {
@@ -71,6 +71,7 @@ public class DoSemesterService implements SemesterService {
     public Semester getSemester(int semesterId) {
         try (Connection connection = SQLDataSource.getInstance().getSQLConnection();
              PreparedStatement stmt = connection.prepareStatement("select * from semesters where id = (?);")) {
+            stmt.setInt(1,semesterId);
             stmt.execute();
             ResultSet result=stmt.getResultSet();
             if(result.next()) {
