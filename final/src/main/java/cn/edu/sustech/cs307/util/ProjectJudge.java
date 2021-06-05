@@ -138,7 +138,13 @@ public final class ProjectJudge {
         try {
             CourseTable result = studentService
                     .getCourseTable(params.get(0), Date.valueOf(LocalDate.ofEpochDay(params.get(1))));
-            return expected.equals(result);
+            boolean r=expected.equals(result);
+            if(!r){
+                r=expected.equals(result);
+                System.err.println(result.table.toString());
+                System.err.println(expected.table.toString());
+            }
+            return r;
         } catch (Throwable t) {
             t.printStackTrace();
             return false;

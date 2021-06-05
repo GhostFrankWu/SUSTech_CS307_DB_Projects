@@ -101,9 +101,10 @@ public class DoMajorService implements MajorService {
     public void addMajorCompulsoryCourse(int majorId, String courseId) {
         try (Connection connection = SQLDataSource.getInstance().getSQLConnection();
              PreparedStatement stmt = connection.prepareStatement(
-                     "insert into major_compulsory_course (major_id, course_id) values (?,?);")) {
+                     "insert into major_course (major_id, course_id,is_major_elective) values (?,?,?);")) {
             stmt.setInt(1, majorId);
             stmt.setString(2, courseId);
+            stmt.setBoolean(3, false);
             stmt.execute();
         } catch (SQLException e) {
             e.printStackTrace();
@@ -114,9 +115,10 @@ public class DoMajorService implements MajorService {
     public void addMajorElectiveCourse(int majorId, String courseId) {
         try (Connection connection = SQLDataSource.getInstance().getSQLConnection();
              PreparedStatement stmt = connection.prepareStatement(
-                     "insert into major_elective_course (major_id, course_id) values (?,?);")) {
+                     "insert into major_course (major_id, course_id,is_major_elective) values (?,?,?);")) {
             stmt.setInt(1, majorId);
             stmt.setString(2, courseId);
+            stmt.setBoolean(3, true);
             stmt.execute();
         } catch (SQLException e) {
             e.printStackTrace();
