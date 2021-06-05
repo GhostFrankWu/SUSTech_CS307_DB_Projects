@@ -5,7 +5,7 @@ import cn.edu.sustech.cs307.dto.*;
 import cn.edu.sustech.cs307.dto.grade.Grade;
 import cn.edu.sustech.cs307.dto.prerequisite.Prerequisite;
 import cn.edu.sustech.cs307.factory.ServiceFactory;
-import cn.edu.sustech.cs307.service.StudentService;
+import cn.edu.sustech.cs307.service.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.io.File;
@@ -13,10 +13,7 @@ import java.io.IOException;
 import java.sql.Date;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public final class ProjectJudge {
@@ -27,7 +24,11 @@ public final class ProjectJudge {
     private static final File enrollCourse2Dir = new File("./data/enrollCourse2/");
 
     private final ServiceFactory serviceFactory = Config.getServiceFactory();
+    private final CourseService courseService = serviceFactory.createService(CourseService.class);
+    private final DepartmentService departmentService = serviceFactory.createService(DepartmentService.class);
+    private final SemesterService semesterService = serviceFactory.createService(SemesterService.class);
     private final StudentService studentService = serviceFactory.createService(StudentService.class);
+    private final UserService userService = serviceFactory.createService(UserService.class);
     private final DataImporter importer = new DataImporter();
 
     public int testSearchCourses(File searchCourseDir) {
@@ -70,7 +71,7 @@ public final class ProjectJudge {
             for (CourseSectionClass clazz : entry.sectionClasses) {
                 clazz.id = importer.mapClassId(clazz.id);
             }
-            entry.sectionClasses = new HashSet<>(entry.sectionClasses); // fix HashSet internal state
+            entry.sectionClasses = Set.copyOf(entry.sectionClasses); // fix HashSet internal state
         }
     }
 
@@ -146,11 +147,11 @@ public final class ProjectJudge {
 
     public int testDropCourses(Map<String, Map<String, Grade>> studentCourses) {
         AtomicInteger passCount = new AtomicInteger();
-        studentCourses.forEach((studentId, grades) -> {
-            int student = Integer.parseInt(studentId);
-            grades.forEach((sectionId, grade) -> {
-                if (grade != null) {
-                    int section = importer.mapSectionId(Integer.parseInt(sectionId));
+        studentCourses.entrySet().parallelStream().forEach(grades -> {
+            int student = Integer.parseInt(grades.getKey());
+            grades.getValue().entrySet().parallelStream().forEach(it -> {
+                if (it.getValue() != null) {
+                    int section = importer.mapSectionId(Integer.parseInt(it.getKey()));
                     try {
                         studentService.dropCourse(student, section);
                     } catch (IllegalStateException e) {
@@ -171,6 +172,24 @@ public final class ProjectJudge {
     }
 
     public void benchmark() {
+        if (!courseService.getAllCourses().isEmpty()
+                || !departmentService.getAllDepartments().isEmpty()
+                || !semesterService.getAllSemesters().isEmpty()
+                || !userService.getAllUsers().isEmpty()) {
+            System.out.println("Database is not empty! Trying to truncate all your tables.");
+            try {
+                courseService.getAllCourses().parallelStream().forEach(it -> courseService.removeCourse(it.id));
+                departmentService.getAllDepartments().parallelStream()
+                        .forEach(it -> departmentService.removeDepartment(it.id));
+                semesterService.getAllSemesters().parallelStream().forEach(it -> semesterService.removeSemester(it.id));
+                userService.getAllUsers().parallelStream().forEach(it -> userService.removeUser(it.id));
+            } catch (Throwable t) {
+                System.out.println("Failed to truncate database.");
+                t.printStackTrace();
+                System.exit(1);
+            }
+        }
+
         // 1. Import everything other than studentCourses.json
         List<Department> departments = readValueFromFile("departments.json", List.class);
         List<Major> majors = readValueFromFile("majors.json", List.class);

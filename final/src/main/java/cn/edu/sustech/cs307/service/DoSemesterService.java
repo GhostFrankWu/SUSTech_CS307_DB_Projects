@@ -48,7 +48,7 @@ public class DoSemesterService implements SemesterService {
     public List<Semester> getAllSemesters() {
         ArrayList<Semester> semesters = new ArrayList<>();
         try (Connection connection = SQLDataSource.getInstance().getSQLConnection();
-             PreparedStatement stmt = connection.prepareStatement("select * from semesters;")) {
+             PreparedStatement stmt = connection.prepareStatement("select * from semester;")) {
             stmt.execute();
             ResultSet result=stmt.getResultSet();
             while(result.next()) {
@@ -68,7 +68,7 @@ public class DoSemesterService implements SemesterService {
     @Override
     public Semester getSemester(int semesterId) {
         try (Connection connection = SQLDataSource.getInstance().getSQLConnection();
-             PreparedStatement stmt = connection.prepareStatement("select * from semesters where id = (?);")) {
+             PreparedStatement stmt = connection.prepareStatement("select * from semester where id = (?);")) {
             stmt.setInt(1,semesterId);
             stmt.execute();
             ResultSet result=stmt.getResultSet();

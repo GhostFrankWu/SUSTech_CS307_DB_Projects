@@ -73,7 +73,7 @@ public class DoUserService implements UserService {
             if(result.next()) {
                 User cur=new Instructor();
                 cur.id=result.getInt(1);
-                cur.fullName=result.getString(2);
+                cur.fullName=result.getString(2).replace(",","");//fixme in 2 cols
                 return cur;
             }
         } catch (SQLException e) {

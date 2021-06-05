@@ -16,7 +16,6 @@ public abstract class ServiceFactory {
      */
     public <T> T createService(Class<T> serviceClass) {
         try {
-            System.out.println(services.get(serviceClass));
             return (T) services.get(serviceClass);
         } catch (Exception e) {
             e.printStackTrace();

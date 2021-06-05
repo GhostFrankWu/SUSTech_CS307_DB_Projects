@@ -5,10 +5,6 @@ import cn.edu.sustech.cs307.dto.*;
 import cn.edu.sustech.cs307.dto.grade.Grade;
 import cn.edu.sustech.cs307.dto.grade.HundredMarkGrade;
 import cn.edu.sustech.cs307.dto.grade.PassOrFailGrade;
-import cn.edu.sustech.cs307.dto.prerequisite.AndPrerequisite;
-import cn.edu.sustech.cs307.dto.prerequisite.CoursePrerequisite;
-import cn.edu.sustech.cs307.dto.prerequisite.OrPrerequisite;
-import cn.edu.sustech.cs307.dto.prerequisite.Prerequisite;
 
 import javax.annotation.Nullable;
 import javax.annotation.ParametersAreNonnullByDefault;
@@ -32,7 +28,7 @@ public class DoStudentService implements StudentService {
 
     @Override
     public void addStudent(int userId, int majorId, String firstName, String lastName, Date enrolledDate) {
-        int uid=new DoUserService().addUser(userId,firstName+","+lastName);
+        int uid = new DoUserService().addUser(userId, firstName + "," + lastName);
         try (Connection connection = SQLDataSource.getInstance().getSQLConnection();
              PreparedStatement stmt = connection.prepareStatement("insert into student (id,enrolled_date,major_id) values (?,?,?);")) {
             stmt.setInt(1, uid);
@@ -46,224 +42,102 @@ public class DoStudentService implements StudentService {
 
     @Override
     public List<CourseSearchEntry> searchCourse(int studentId, int semesterId, @Nullable String searchCid,
-                @Nullable String searchName, @Nullable String searchInstructor, @Nullable DayOfWeek searchDayOfWeek,
-                @Nullable Short searchClassTime, @Nullable List<String> searchClassLocations, CourseType searchCourseType,
-                boolean ignoreFull, boolean ignoreConflict, boolean ignorePassed, boolean ignoreMissingPrerequisites,
-                int pageSize, int pageIndex) {
-        ArrayList<CourseSearchEntry> arrayList = new ArrayList<>();
-        ArrayList<CourseSearchEntry> res = new ArrayList<>();
-        ArrayList<CourseSection> courseSections = new ArrayList<>();
-        DoCourseService getCourse=new DoCourseService();
+                                                @Nullable String searchName, @Nullable String searchInstructor, @Nullable DayOfWeek searchDayOfWeek,
+                                                @Nullable Short searchClassTime, @Nullable List<String> searchClassLocations, CourseType searchCourseType,
+                                                boolean ignoreFull, boolean ignoreConflict, boolean ignorePassed, boolean ignoreMissingPrerequisites,
+                                                int pageSize, int pageIndex) {
+        ArrayList<CourseSearchEntry> arrayList = new ArrayList<>();/*
         try (Connection connection = SQLDataSource.getInstance().getSQLConnection();
              PreparedStatement stmt = connection.prepareStatement(
-                     "select * from course_section where (semester_id)= (?);");//todo can be better
-             PreparedStatement checkCoursePassed = connection.prepareStatement(
-                     "select * from(select * from" +//todo can be better
-                             " (SELECT name FROM course_section WHERE id=(?))courses join course_section cs" +
-                             " on cs.name=courses.name)val join course_select c on c.course_section_class_id=val.id" +
-                             " and c.stu_id=(?);");
+                     "");//todo can be better
              ) {
             stmt.setInt(1, semesterId);
             stmt.execute();
             ResultSet result = stmt.getResultSet();
             while (result.next()) {
-                CourseSection cur = new CourseSection();
+                CourseSearchEntry courseSearchEntry=new CourseSearchEntry();
+                courseSearchEntry.course=new Course();
+                courseSearchEntry.sectionClasses=new HashSet<>();
+                courseSearchEntry.section=new CourseSection();
+                courseSearchEntry.conflictCourseNames=new ArrayList<>();
+                CourseSectionClass cur = new CourseSectionClass();
                 cur.id = result.getInt(1);//now its real id
-                cur.name = result.getString(4);
-                cur.totalCapacity = result.getInt(5);
-                cur.leftCapacity = result.getInt(6);
-                courseSections.add(cur);
-            }
-            for (CourseSection courseSection : courseSections) {
-                if (!ignoreFull && courseSection.leftCapacity == 0) {
-                    continue;
-                }
-                if (!ignorePassed) {
-                    checkCoursePassed.setInt(1,courseSection.id);
-                    checkCoursePassed.setInt(2,studentId);
-                    checkCoursePassed.execute();
-                    if(checkCoursePassed.getResultSet().next()){
-                        continue;
-                    }
-                }
-                if(!ignoreConflict){
-                    //todo
-                }
-                if(!ignoreMissingPrerequisites){
-                    if(checkPrerequisite(studentId, courseSection.id)){
-                        continue;
-                    }
-                }
-                CourseSearchEntry courseSearchEntry = new CourseSearchEntry();
-                courseSearchEntry.section = courseSection;
-                courseSearchEntry.course = getCourse.getCourseBySection(courseSection.id);
-                courseSearchEntry.sectionClasses = new HashSet<>(getCourse.getCourseSectionClasses(courseSection.id));
-                courseSearchEntry.conflictCourseNames = new ArrayList<>();
+                cur.weekList = result.getString(4);
+                cur.dayOfWeek = result.getInt(5);
+                cur.location = result.getInt(6);
+                cur.classBegin = result.getInt(6);
+                cur.classEnd = result.getInt(6);
+                cur.instructor = result.getInt(6);
+                courseSearchEntry.sectionClasses.add(cur);
                 arrayList.add(courseSearchEntry);
             }
-            for (int i = (pageIndex) * pageSize; i < pageSize && i < arrayList.size(); i++) {
-                res.add(arrayList.get(i));
-            }
         } catch (SQLException e) {
             e.printStackTrace();
-        }
-        return res;
+        }*/
+        return arrayList;
     }
 
-    private Prerequisite generatePrerequisite(int prerequisiteID){
-        try (Connection connection = SQLDataSource.getInstance().getSQLConnection();
-             PreparedStatement stmt = connection.prepareStatement("select type from list_prerequisite where id=(?);");
-             PreparedStatement basic = connection.prepareStatement("select course_id from basic_prerequisite where id=(?);");
-             PreparedStatement and = connection.prepareStatement("select terms from and_prerequisite where id=(?);");
-             PreparedStatement or = connection.prepareStatement("select terms from or_prerequisite where id=(?);")) {
-            stmt.setInt(1, prerequisiteID);
+
+    private boolean checkPrerequisite(int studentId, int sectionID) {
+        try (PreparedStatement stmt = connection.prepareStatement(("select check_prerequisite_by_csc_id(?,?);"))) {
+            stmt.setInt(1, sectionID);
+            stmt.setInt(2, studentId);
             stmt.execute();
-            ResultSet resultSet=stmt.getResultSet();
+            ResultSet resultSet = stmt.getResultSet();
             resultSet.next();
-            int type=resultSet.getInt(1);
-            if(type==1){
-                basic.setInt(1,prerequisiteID);
-                basic.execute();
-                ResultSet result=basic.getResultSet();
-                result.next();
-                return new CoursePrerequisite(result.getString(1));
-            }else if(type==2){
-                and.setInt(1,prerequisiteID);
-                and.execute();
-                ResultSet result=and.getResultSet();
-                result.next();
-                Array array=result.getArray(1);
-                ResultSet rs=array.getResultSet();
-                ArrayList<Prerequisite> arrayList=new ArrayList<>();
-                while (rs.next()){
-                    arrayList.add(generatePrerequisite(rs.getInt(1)));
-                }
-                return new AndPrerequisite(arrayList);
-            }else{
-                or.setInt(1,prerequisiteID);
-                or.execute();
-                ResultSet result=or.getResultSet();
-                result.next();
-                Array array=result.getArray(1);
-                ResultSet rs=array.getResultSet();
-                ArrayList<Prerequisite> arrayList=new ArrayList<>();
-                while (rs.next()){
-                    arrayList.add(generatePrerequisite(rs.getInt(1)));
-                }
-                return new OrPrerequisite(arrayList);
-            }
-        } catch (SQLException e) {
-            e.printStackTrace();
-            System.out.println(prerequisiteID);
-        }
-        return null;
-    }
-
-    private boolean check(Prerequisite prerequisite,ArrayList<String> courseLearned){
-        if(prerequisite instanceof CoursePrerequisite){
-            for(String s:courseLearned){
-                if(s.equals(((CoursePrerequisite) prerequisite).courseID)){
-                    return true;
-                }
-            }
-            return false;
-        }else if(prerequisite instanceof AndPrerequisite){
-            for(Prerequisite p:((AndPrerequisite) prerequisite).terms){
-                if(!check(p,courseLearned)){
-                    return false;
-                }
-            }
-            return true;
-        }else{
-            for(Prerequisite p:((OrPrerequisite) prerequisite).terms){
-                if(check(p,courseLearned)){
-                    return true;
-                }
-            }
-            return false;
-        }
-    }
-
-    private boolean checkPrerequisite(int studentId, int sectionID){
-        ArrayList<String> courseLearned=new ArrayList<>();
-        try(PreparedStatement checkCoursePrerequisite = connection.prepareStatement(
-                        "select course_section_class_id from course_select where (stu_id) = (?) and grade >= 60;")){
-            checkCoursePrerequisite.setInt(1,studentId);
-            checkCoursePrerequisite.execute();
-            ResultSet resultSet=checkCoursePrerequisite.getResultSet();
-            DoCourseService getCourse=new DoCourseService();
-            while (resultSet.next()){
-                Course course=getCourse.getCourseBySection(resultSet.getInt(1));
-                courseLearned.add(course.name);
-            }
-        }catch (SQLException e){
-            e.printStackTrace();
-        }
-        Course course=new DoCourseService().getCourseBySection(sectionID);
-        try (PreparedStatement stmt = connection.prepareStatement("select prerequisite from course where id=(?);")) {
-            stmt.setString(1, course.id);
-            stmt.execute();
-            ResultSet resultSet=stmt.getResultSet();
-            resultSet.next();
-            int status=resultSet.getInt(1);
-            if(status!=0){
-                Prerequisite prerequisite=generatePrerequisite(status);
-                assert prerequisite!=null;//
-                return !check(prerequisite, courseLearned);
-            }else {
-                return false;
-            }
+            return resultSet.getBoolean(1);
         } catch (SQLException e) {
             e.printStackTrace();
         }
         return true;
     }
 
+
     @Override
-    public EnrollResult enrollCourse(int studentId, int sectionId) {
+    public EnrollResult enrollCourse(int studentId, int sectionId) {//todo go one function
         try (PreparedStatement checkCourseExists = connection.prepareStatement(
-                     "select * from course_section_class where (serial_id) = (?);");
+                "select * from course_section where (id) = (?);");
              PreparedStatement checkCourseSelected = connection.prepareStatement(
-                     "select * from course_select where (stu_id, course_section_class_id) = (?,?) and grade is null;");
+                     "select * from course_select where (stu_id, course_section_id) = (?,?) and grade is null;");
              PreparedStatement checkCoursePassed = connection.prepareStatement(
-                     "select * from(select * from" +
-                             " (SELECT name FROM course_section WHERE id=(?))courses join course_section cs" +
-                             " on cs.name=courses.name)val join course_select c on c.course_section_class_id=val.id" +
-                             " and c.stu_id=(?);");
+                     "select check_course_passed(?,?);");
              PreparedStatement checkCourseFull = connection.prepareStatement(
-                     "select left_capacity from course_section cs join course_section_class csc on cs.id = (?);");
-             PreparedStatement stmt = connection.prepareStatement(
-                     "insert into course_select (stu_id, course_section_class_id) values (?,?);")) {
-            checkCourseExists.setInt(1,sectionId);
+                     "select check_course_full(?);");
+             PreparedStatement addCourse = connection.prepareStatement(
+                     "insert into course_select (stu_id, course_section_id) values (?,?);")) {
+            connection.setAutoCommit(true);
+            checkCourseExists.setInt(1, sectionId);
             checkCourseExists.execute();
-            if(!checkCourseExists.getResultSet().next()){
+            if (!checkCourseExists.getResultSet().next()) {
                 return EnrollResult.COURSE_NOT_FOUND;
             }
 
-            checkCourseSelected.setInt(1,studentId);
-            checkCourseSelected.setInt(2,sectionId);
+            checkCourseSelected.setInt(1, studentId);
+            checkCourseSelected.setInt(2, sectionId);
             checkCourseSelected.execute();
-            if(checkCourseSelected.getResultSet().next()){
+            if (checkCourseSelected.getResultSet().next()) {
                 return EnrollResult.ALREADY_ENROLLED;
             }
 
-            checkCoursePassed.setInt(2,studentId);
-            checkCoursePassed.setInt(1,sectionId);
+            checkCoursePassed.setInt(2, studentId);
+            checkCoursePassed.setInt(1, sectionId);
             checkCoursePassed.execute();
-            if(checkCoursePassed.getResultSet().next()){
+            ResultSet res = checkCoursePassed.getResultSet();
+            res.next();
+            if (res.getBoolean(1)) {
                 return EnrollResult.ALREADY_PASSED;
             }
 
 
-            if(checkPrerequisite(studentId, sectionId)){
+            if (!checkPrerequisite(studentId, sectionId)) {
                 return EnrollResult.PREREQUISITES_NOT_FULFILLED;
             }
 
-            checkCourseFull.setInt(1,sectionId);
+            checkCourseFull.setInt(1, sectionId);
             checkCourseFull.execute();
-            ResultSet result=checkCourseFull.getResultSet();
+            ResultSet result = checkCourseFull.getResultSet();
             result.next();
-            if(result.getInt(1)==0){
+            if (result.getBoolean(1)) {
                 return EnrollResult.COURSE_IS_FULL;
             }
             //fixme check valid
@@ -271,9 +145,9 @@ public class DoStudentService implements StudentService {
                 EnrollResult.COURSE_CONFLICT_FOUND;
             */
 
-            stmt.setInt(1, studentId);
-            stmt.setInt(2, sectionId);
-            stmt.execute();
+            addCourse.setInt(1, studentId);
+            addCourse.setInt(2, sectionId);
+            addCourse.execute();
         } catch (SQLException e) {
             e.printStackTrace();
             return EnrollResult.UNKNOWN_ERROR;
@@ -281,44 +155,64 @@ public class DoStudentService implements StudentService {
         return EnrollResult.SUCCESS;
     }
 
+
     @Override
     public void dropCourse(int studentId, int sectionId) throws IllegalStateException {
-        try (PreparedStatement stmt = connection.prepareStatement(
-                "delete from course_select where (stu_id,course_section_class_id) = (?,?);");
-             PreparedStatement SQue = connection.prepareStatement(
-                     "select * from course_select where (stu_id,course_section_class_id) = (?,?) and grade is null;")) {//
-            SQue.setInt(1, studentId);
-            SQue.setInt(2, sectionId);
-            SQue.execute();
-            ResultSet result=SQue.getResultSet();
-            if(!result.next()){
+        try (PreparedStatement dropCourse = connection.prepareStatement(
+                "delete from course_select where (stu_id,course_section_id) = (?,?) and grade is null;");
+             PreparedStatement checkCourseExist = connection.prepareStatement(
+                     "select * from course_select where (stu_id,course_section_id) = (?,?) and grade is null;")) {
+            connection.setAutoCommit(true);
+            checkCourseExist.setInt(1, studentId);
+            checkCourseExist.setInt(2, sectionId);
+            checkCourseExist.execute();
+            ResultSet result = checkCourseExist.getResultSet();
+            if (!result.next()) {
                 throw new IllegalStateException();
             }
-            stmt.setInt(1, studentId);
-            stmt.setInt(2, sectionId);
-            stmt.execute();
+            dropCourse.setInt(1, studentId);
+            dropCourse.setInt(2, sectionId);
+            dropCourse.execute();
         } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+
+    private static PreparedStatement enrollCourseWithGrade;
+    private static final int batchSize=1000;
+    private static int batchCount=0;
+    static {
+        try{
+            enrollCourseWithGrade = connection.prepareStatement(
+                    "insert into course_select (stu_id, course_section_id,grade) values (?,?,?)");
+        }catch (SQLException e){
             e.printStackTrace();
         }
     }
 
     @Override
     public void addEnrolledCourseWithGrade(int studentId, int sectionId, @Nullable Grade grade) {
-        try (PreparedStatement stmt = connection.prepareStatement(
-                     "insert into course_select (stu_id, course_section_class_id,grade) values (?,?,?)")) {
-            stmt.setInt(1, studentId);
-            stmt.setInt(2, sectionId);
-            stmt.setNull(3, 3);
-            if (grade!=null) {
+        try {
+            connection.setAutoCommit(false);
+            enrollCourseWithGrade.setInt(1, studentId);
+            enrollCourseWithGrade.setInt(2, sectionId);
+            if (grade != null) {
                 if (grade instanceof HundredMarkGrade) {
                     HundredMarkGrade hundredMarkGrade = (HundredMarkGrade) grade;
-                    stmt.setShort(3, hundredMarkGrade.mark);
+                    enrollCourseWithGrade.setShort(3, hundredMarkGrade.mark);
                 } else {
                     PassOrFailGrade passOrFailGrade = (PassOrFailGrade) grade;
-                    stmt.setShort(3, (short) (passOrFailGrade.equals(PassOrFailGrade.PASS) ? 60 : 0));
+                    enrollCourseWithGrade.setShort(3, (short) (passOrFailGrade.equals(PassOrFailGrade.PASS) ? 60 : 0));
                 }
+            } else {
+                enrollCourseWithGrade.setNull(3, 3);
             }
-            stmt.execute();
+            //enrollCourseWithGrade.addBatch();
+           // batchCount++;
+            //if(batchCount>batchSize){
+                enrollCourseWithGrade.execute();
+            //}
         } catch (SQLException e) {
             e.printStackTrace();
         }
@@ -326,47 +220,47 @@ public class DoStudentService implements StudentService {
 
     @Override
     public void setEnrolledCourseGrade(int studentId, int sectionId, Grade grade) {
-        try (PreparedStatement stmt = connection.prepareStatement(
-                     "update course_select set grade=(?) where (stu_id, course_section_class_id)=(?,?);")) {
-            stmt.setInt(2, studentId);
-            stmt.setInt(3, sectionId);
-            if(grade instanceof HundredMarkGrade) {
-                HundredMarkGrade hundredMarkGrade= (HundredMarkGrade) grade;
-                stmt.setShort(1, hundredMarkGrade.mark);
-            }else{
-                PassOrFailGrade passOrFailGrade= (PassOrFailGrade) grade;
-                stmt.setShort(3, (short) (passOrFailGrade.equals(PassOrFailGrade.PASS)?60:0));
+        try (PreparedStatement setEnrollCourseWithGrade = connection.prepareStatement(
+                "update course_select set grade=(?) where (stu_id, course_class_id)=(?,?);")) {
+            setEnrollCourseWithGrade.setInt(2, studentId);
+            setEnrollCourseWithGrade.setInt(3, sectionId);
+            if (grade instanceof HundredMarkGrade) {
+                HundredMarkGrade hundredMarkGrade = (HundredMarkGrade) grade;
+                setEnrollCourseWithGrade.setShort(1, hundredMarkGrade.mark);
+            } else {
+                PassOrFailGrade passOrFailGrade = (PassOrFailGrade) grade;
+                setEnrollCourseWithGrade.setShort(3, (short) (passOrFailGrade.equals(PassOrFailGrade.PASS) ? 60 : 0));
             }
-            stmt.execute();
+            setEnrollCourseWithGrade.execute();
         } catch (SQLException e) {
             e.printStackTrace();
         }
     }
 
     @Override
-    public Map<Course, Grade> getEnrolledCoursesAndGrades(int studentId, @Nullable Integer semesterId) {
-        HashMap<Course, Grade> map=new HashMap<>();
+    public Map<Course, Grade> getEnrolledCoursesAndGrades(int studentId, @Nullable Integer Id) {
+        HashMap<Course, Grade> map = new HashMap<>();
         try (PreparedStatement stmt = connection.prepareStatement("select * from course_select where (stu_id) = (?);");
              PreparedStatement SQue = connection.prepareStatement("select * from course c join " +
                      "(select cs.name from course_section cs join course_section_class csc on cs.id = csc.id " +
                      " and csc.serial_id=(?) )j on c.name=j.name;")) {
             stmt.setInt(1, studentId);
             stmt.execute();
-            ResultSet result=stmt.getResultSet();
-            while (result.next()){
-                SQue.setInt(1,result.getInt(2));
+            ResultSet result = stmt.getResultSet();
+            while (result.next()) {
+                SQue.setInt(1, result.getInt(2));
                 SQue.execute();
-                ResultSet res=SQue.getResultSet();
-                Course course=new Course();
-                course.id=res.getString(1);
-                course.credit=res.getInt(2);
-                course.classHour=res.getInt(3);
-                course.grading=res.getBoolean(4)? Course.CourseGrading.HUNDRED_MARK_SCORE: Course.CourseGrading.PASS_OR_FAIL;
-                if(res.getBoolean(4)) {
-                    HundredMarkGrade hundredMarkGrade=new HundredMarkGrade(res.getShort(3));
+                ResultSet res = SQue.getResultSet();
+                Course course = new Course();
+                course.id = res.getString(1);
+                course.credit = res.getInt(2);
+                course.classHour = res.getInt(3);
+                course.grading = res.getBoolean(4) ? Course.CourseGrading.HUNDRED_MARK_SCORE : Course.CourseGrading.PASS_OR_FAIL;
+                if (res.getBoolean(4)) {
+                    HundredMarkGrade hundredMarkGrade = new HundredMarkGrade(res.getShort(3));
                     map.put(course, hundredMarkGrade);
-                }else{
-                    map.put(course, res.getShort(3)>=60?PassOrFailGrade.PASS:PassOrFailGrade.FAIL);
+                } else {
+                    map.put(course, res.getShort(3) >= 60 ? PassOrFailGrade.PASS : PassOrFailGrade.FAIL);
                 }
             }
         } catch (SQLException e) {
@@ -377,19 +271,47 @@ public class DoStudentService implements StudentService {
 
     @Override
     public CourseTable getCourseTable(int studentId, Date date) {
-        CourseTable courseTable=new CourseTable();
-        try(PreparedStatement stmt = connection.prepareStatement(
-                "select * from course_section_class csc join course_select cs on csc.serial_id = " +
-                        "cs.course_section_class_id and cs.stu_id=(?);")){
-            stmt.setInt(1,studentId);
+        CourseTable courseTable = new CourseTable();
+        courseTable.table = new HashMap<>();
+        for (DayOfWeek day : DayOfWeek.values()) {
+            courseTable.table.put(day, new HashSet<>());
+        }
+        try (PreparedStatement stmt = connection.prepareStatement(
+                "select instructor_id,location,last_time.cna,section_name,day_of_week,week_list,\n" +
+                        "       last_time.begin,last_time.\"end\",(?)-s.begin from\n" +
+                        "(select c.name cna,* from(select * from(select * from course_select cs join course_section c\n" +
+                        "    on c.id = cs.course_section_id and cs.stu_id=(?))sections\n" +
+                        "join course_section_class csc on course_section_id=csc.id)body join course c on body.name=c.id)last_time\n" +
+                        "join semester s on last_time.semester_id=s.id and (?)>s.begin and (?)<s.\"end\";")) {
+            stmt.setDate(1, date);
+            stmt.setInt(2, studentId);
+            stmt.setDate(3, date);
+            stmt.setDate(4, date);
             stmt.execute();
-            ResultSet resultSet=stmt.getResultSet();
-            courseTable.table=new HashMap<>();
-            while(resultSet.next()) {
+            ResultSet resultSet = stmt.getResultSet();
+            while (resultSet.next()) {
+                Array arr = resultSet.getArray(6);
+                ResultSet rs = arr.getResultSet();
+                int week = resultSet.getInt(9) / 7 + 1;
+                boolean inWeek = false;
+                while (rs.next()) {
+                    if (week == (rs.getInt(1))) {
+                        inWeek = true;
+                        break;
+                    }
+                }
+                if (!inWeek) {
+                    continue;
+                }
                 CourseTable.CourseTableEntry courseTableEntry = new CourseTable.CourseTableEntry();
-                //fixme
+                courseTableEntry.instructor = (Instructor) new DoUserService().getUser(resultSet.getInt(1));
+                courseTableEntry.location = resultSet.getString(2);
+                courseTableEntry.courseFullName = String.format("%s[%s]", resultSet.getString(3), resultSet.getString(4));
+                courseTableEntry.classBegin = resultSet.getShort(7);
+                courseTableEntry.classEnd = resultSet.getShort(8);
+                courseTable.table.get(DayOfWeek.valueOf(resultSet.getString(5))).add(courseTableEntry);
             }
-        }catch (SQLException e){
+        } catch (SQLException e) {
             e.printStackTrace();
         }
         return courseTable;
@@ -397,17 +319,17 @@ public class DoStudentService implements StudentService {
 
     @Override
     public boolean passedPrerequisitesForCourse(int studentId, String courseId) {
-        int id=-1;
-        try(PreparedStatement stmt = connection.prepareStatement("select id from course_section where name=(?);")){
-            stmt.setString(1,courseId);
+        int id = -1;
+        try (PreparedStatement stmt = connection.prepareStatement("select id from course_section where name=(?);")) {
+            stmt.setString(1, courseId);
             stmt.execute();
-            ResultSet resultSet=stmt.getResultSet();
+            ResultSet resultSet = stmt.getResultSet();
             resultSet.next();
-            id=resultSet.getInt(1);
-        }catch (SQLException e){
+            id = resultSet.getInt(1);
+        } catch (SQLException e) {
             e.printStackTrace();
         }
-        return checkPrerequisite(studentId,id);
+        return checkPrerequisite(studentId, id);
     }
 
     @Override
@@ -415,26 +337,23 @@ public class DoStudentService implements StudentService {
         try (PreparedStatement stmt = connection.prepareStatement("select major_id from student where id = (?);");
              PreparedStatement SQue = connection.prepareStatement("select * from major where id = (?);");
              PreparedStatement NQue = connection.prepareStatement("select * from department where id = (?);")) {
-            stmt.setInt(1,studentId);
+            stmt.setInt(1, studentId);
             stmt.execute();
-            ResultSet result=stmt.getResultSet();
-            if(result.next()) {
-                SQue.setInt(1,studentId);
+            ResultSet result = stmt.getResultSet();
+            if (result.next()) {
+                SQue.setInt(1, studentId);
                 SQue.execute();
-                ResultSet res=SQue.getResultSet();
-                Major cur=new Major();
-                cur.id=res.getInt(1);
-                cur.name=res.getString(3);
+                ResultSet res = SQue.getResultSet();
+                Major cur = new Major();
+                cur.id = res.getInt(1);
+                cur.name = res.getString(3);
                 NQue.setInt(1, res.getInt(2));
                 NQue.execute();
-                ResultSet r=NQue.getResultSet();
-                Department department=new Department();
-                department.id=r.getInt(1);
-                department.name=r.getString(2);
-                cur.department=department;
-                stmt.close();//todo notclose
-                SQue.close();
-                NQue.close();
+                ResultSet r = NQue.getResultSet();
+                Department department = new Department();
+                department.id = r.getInt(1);
+                department.name = r.getString(2);
+                cur.department = department;
                 return cur;
             }
         } catch (SQLException e) {
