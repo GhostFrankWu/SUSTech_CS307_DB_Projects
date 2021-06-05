@@ -15,8 +15,8 @@ public class DoUserService implements UserService {
 
     public int addUser(int userId,String name) {
         try (Connection connection = SQLDataSource.getInstance().getSQLConnection();
-             PreparedStatement stmt = connection.prepareStatement("insert into users (id, fullname) values (?,?);");
-             PreparedStatement SQue = connection.prepareStatement("select id from users where (id, fullname) = (?,?);")) {
+             PreparedStatement stmt = connection.prepareStatement("insert into users (id, full_name) values (?,?);");
+             PreparedStatement SQue = connection.prepareStatement("select id from users where (id, full_name) = (?,?);")) {
             stmt.setInt(1, userId);
             stmt.setString(2, name);
             SQue.setInt(1, userId);
@@ -26,8 +26,6 @@ public class DoUserService implements UserService {
             ResultSet result=SQue.getResultSet();
             if(result.next()) {
                 return result.getInt(1);
-            }else{
-                //todo raise ERROR
             }
         } catch (SQLException e) {
             e.printStackTrace();

@@ -26,8 +26,6 @@ public class DoSemesterService implements SemesterService {
             ResultSet result=SQue.getResultSet();
             if(result.next()) {
                 return result.getInt(1);
-            }else{
-                //todo raise ERROR
             }
         } catch (SQLException e) {
             e.printStackTrace();

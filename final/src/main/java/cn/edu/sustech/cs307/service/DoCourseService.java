@@ -2,6 +2,9 @@ package cn.edu.sustech.cs307.service;
 
 import cn.edu.sustech.cs307.database.SQLDataSource;
 import cn.edu.sustech.cs307.dto.*;
+import cn.edu.sustech.cs307.dto.prerequisite.AndPrerequisite;
+import cn.edu.sustech.cs307.dto.prerequisite.CoursePrerequisite;
+import cn.edu.sustech.cs307.dto.prerequisite.OrPrerequisite;
 import cn.edu.sustech.cs307.dto.prerequisite.Prerequisite;
 
 import javax.annotation.Nullable;
@@ -18,6 +21,73 @@ import static cn.edu.sustech.cs307.dto.Course.CourseGrading.PASS_OR_FAIL;
 
 @ParametersAreNonnullByDefault
 public class DoCourseService implements CourseService {
+
+    private int addBasicPrerequisite(Prerequisite prerequisite) {
+        try (Connection connection = SQLDataSource.getInstance().getSQLConnection();
+             PreparedStatement stmt = connection.prepareStatement("insert into list_prerequisite (type) values (1);;");
+             PreparedStatement SQue = connection.prepareStatement("select count(*) from list_prerequisite;");
+             PreparedStatement NQue = connection.prepareStatement(
+                     "insert into basic_prerequisite (id,course_id) values (?,?);")) {
+            stmt.execute();
+            SQue.execute();
+
+            ResultSet result=SQue.getResultSet();
+            result.next();
+            NQue.setInt(1, result.getInt(1));
+            CoursePrerequisite p= (CoursePrerequisite) prerequisite;
+            NQue.setString(2,p.courseID);
+            NQue.execute();
+            return result.getInt(1);
+        } catch (SQLException  e) {
+            e.printStackTrace();
+        }
+        return -1;
+    }
+
+    private int addAndOrPrerequisite(ArrayList<Integer> prerequisite,boolean isAndRelation) {
+        try (Connection connection = SQLDataSource.getInstance().getSQLConnection();
+             PreparedStatement stmt = connection.prepareStatement(isAndRelation?
+                     "insert into list_prerequisite (type) values (2);":"insert into list_prerequisite (type) values (3);");
+             PreparedStatement SQue = connection.prepareStatement("select count(*) from list_prerequisite;");
+             PreparedStatement NQue = connection.prepareStatement(
+                     "insert into "+(isAndRelation?"and_prerequisite":"or_prerequisite") +"(id,terms) values (?,?);")) {
+            stmt.execute();
+            SQue.execute();
+            ResultSet result=SQue.getResultSet();
+            result.next();
+            NQue.setInt(1,result.getInt(1));
+            Integer[] integers=prerequisite.toArray(new Integer[0]);
+            Array arr=connection.createArrayOf("int",integers);
+            NQue.setArray(2,arr);
+            NQue.execute();
+            return result.getInt(1);
+        } catch (SQLException  e) {
+            e.printStackTrace();
+        }
+        return -1;
+    }
+
+    private int handlePrerequisite(Prerequisite prerequisite){
+        if(prerequisite instanceof CoursePrerequisite){
+            return addBasicPrerequisite(prerequisite);
+        }else if(prerequisite instanceof AndPrerequisite){
+            ArrayList<Integer> ids=new ArrayList<>();
+            AndPrerequisite p= (AndPrerequisite) prerequisite;
+            for (Prerequisite it:p.terms){
+                ids.add(handlePrerequisite(it));
+            }
+            return addAndOrPrerequisite(ids,true);
+        }else {
+            ArrayList<Integer> ids=new ArrayList<>();
+            OrPrerequisite p= (OrPrerequisite) prerequisite;
+            for (Prerequisite it:p.terms){
+                ids.add(handlePrerequisite(it));
+            }
+            return addAndOrPrerequisite(ids,false);
+        }
+    }
+
+
     /**
      * Add one course according to following parameters.
      * If some of parameters are invalid, throw {@link cn.edu.sustech.cs307.exception.IntegrityViolationException}
@@ -33,12 +103,17 @@ public class DoCourseService implements CourseService {
                           Course.CourseGrading grading, @Nullable Prerequisite prerequisite) {
         try (Connection connection = SQLDataSource.getInstance().getSQLConnection();
              PreparedStatement stmt = connection.prepareStatement(
-                     "insert into course (id, name, credit, class_hour, grading) VALUES (?,?,?,?,?);")) {
+                     "insert into course (id, name, credit, class_hour, grading,prerequisite) VALUES (?,?,?,?,?,?);")) {
             stmt.setString(1, courseId);
             stmt.setString(2, courseName);
             stmt.setInt(3, credit);
             stmt.setInt(4, classHour);
             stmt.setBoolean(5, grading == Course.CourseGrading.HUNDRED_MARK_SCORE);
+            if(prerequisite==null) {
+                stmt.setNull(6, 6);
+            }else {
+                stmt.setInt(6,handlePrerequisite(prerequisite));
+            }
             stmt.execute();
         } catch (SQLException e) {
             e.printStackTrace();
@@ -49,9 +124,9 @@ public class DoCourseService implements CourseService {
     public int addCourseSection(String courseId, int semesterId, String sectionName, int totalCapacity) {
         try (Connection connection = SQLDataSource.getInstance().getSQLConnection();
              PreparedStatement stmt = connection.prepareStatement(
-                     "insert into course_section (semester_id, name, section_name, totalCapacity, leftCapacity) VALUES (?,?,?,?,?);");
+                     "insert into course_section (semester_id, name, section_name, total_capacity, left_capacity) VALUES (?,?,?,?,?);");
              PreparedStatement SQue = connection.prepareStatement(
-                     "select id from course_section where (semester_id, name, section_name, totalCapacity, leftCapacity) = (?,?,?,?,?);")) {
+                     "select id from course_section where (semester_id, name, section_name, total_capacity, left_capacity) = (?,?,?,?,?);")) {
 
             stmt.setInt(1, semesterId);
             stmt.setString(2, courseId);
@@ -68,8 +143,6 @@ public class DoCourseService implements CourseService {
             ResultSet result=SQue.getResultSet();
             if(result.next()) {
                 return result.getInt(1);
-            }else{
-                //todo raise ERROR
             }
         } catch (SQLException e) {
             e.printStackTrace();
@@ -106,8 +179,6 @@ public class DoCourseService implements CourseService {
             ResultSet result=SQue.getResultSet();
             if(result.next()) {
                 return result.getInt(1);
-            }else{
-                //todo raise ERROR
             }
         } catch (SQLException e) {
             e.printStackTrace();
@@ -178,7 +249,7 @@ public class DoCourseService implements CourseService {
         try (Connection connection = SQLDataSource.getInstance().getSQLConnection();
              PreparedStatement stmt = connection.prepareStatement("select * from course_section where (name,semester_id)= (?,?);")) {
             stmt.setString(1, courseId);
-            stmt.setInt(1, semesterId);
+            stmt.setInt(2, semesterId);
             stmt.execute();
             ResultSet result=stmt.getResultSet();
             while(result.next()) {
@@ -207,6 +278,7 @@ public class DoCourseService implements CourseService {
                 SQue.setString(1, result.getString(1));
                 SQue.execute();
                 ResultSet res=SQue.getResultSet();
+                res.next();
                 Course cur=new Course();
                 cur.id=res.getString(1);
                 cur.name=res.getString(2);
@@ -214,8 +286,6 @@ public class DoCourseService implements CourseService {
                 cur.classHour=res.getInt(4);
                 cur.grading=res.getBoolean(5)?HUNDRED_MARK_SCORE:PASS_OR_FAIL;
                 return cur;
-            }else{
-                //todo raise error
             }
         } catch (SQLException e) {
             e.printStackTrace();
@@ -227,39 +297,34 @@ public class DoCourseService implements CourseService {
     public List<CourseSectionClass> getCourseSectionClasses(int sectionId) {
         ArrayList<CourseSectionClass> courseSectionClasses = new ArrayList<>();
         try (Connection connection = SQLDataSource.getInstance().getSQLConnection();
-             PreparedStatement stmt = connection.prepareStatement("select name from course_section_class where id=(?);");
-             PreparedStatement SQue = connection.prepareStatement("select user_id from instructor where id=(?);");
+             PreparedStatement SQue = connection.prepareStatement("select * from course_section_class where id=(?);");
              PreparedStatement NQue = connection.prepareStatement("select * from users where id=(?);")) {
-            stmt.setInt(1, sectionId);
-            stmt.execute();
-            ResultSet result=stmt.getResultSet();
+            SQue.setInt(1, sectionId);
+            SQue.execute();
+            ResultSet result=SQue.getResultSet();
             if(result.next()) {
                 CourseSectionClass cur=new CourseSectionClass();
-                SQue.setInt(1, result.getInt(3));
-                SQue.execute();
-                ResultSet res=SQue.getResultSet();
-                NQue.setInt(1, res.getInt(1));//user_id
+                NQue.setInt(1, result.getInt(3));
                 NQue.execute();
                 ResultSet r=NQue.getResultSet();
+                r.next();
                 Instructor instructor=new Instructor();
                 instructor.id=r.getInt(1);
                 instructor.fullName=r.getString(2);
-                cur.id=res.getInt(2);
+                cur.id=result.getInt(2);
                 cur.instructor=instructor;
-                cur.dayOfWeek=DayOfWeek.valueOf(res.getString(4));
-                Array arr=res.getArray(5);
+                cur.dayOfWeek=DayOfWeek.valueOf(result.getString(4));
+                Array arr=result.getArray(5);
                 ResultSet rs=arr.getResultSet();
                 HashSet<Short> set=new HashSet<>();
                 while (rs.next()){
                     set.add(rs.getShort(1));
                 }
                 cur.weekList=set;
-                cur.classBegin=res.getShort(6);
-                cur.classEnd=res.getShort(7);
-                cur.location=res.getString(8);
+                cur.classBegin=result.getShort(6);
+                cur.classEnd=result.getShort(7);
+                cur.location=result.getString(8);
                 courseSectionClasses.add(cur);
-            }else{
-                //todo raise error
             }
         } catch (SQLException e) {
             e.printStackTrace();
@@ -294,19 +359,19 @@ public class DoCourseService implements CourseService {
     }
 
 
-    /**
+    /*
      * Add one course section class according to following parameters:
      * If some of parameters are invalid, throw {@link cn.edu.sustech.cs307.exception.IntegrityViolationException}
      *
-     * @param sectionId
-     * @param instructorId
-     * @param dayOfWeek
-     * @param weekList
-     * @param classStart
-     * @param classEnd
-     * @param location
+     * @param sectionId 0
+     * @param instructorId 0
+     * @param dayOfWeek 0
+     * @param weekList 0
+     * @param classStart 0
+     * @param classEnd 0
+     * @param location 0
      * @return the CourseSectionClass id of new inserted line.
-     */
+     *
     int addCourseSectionClass(int sectionId, int instructorId, DayOfWeek dayOfWeek, List<Short> weekList,
                               short classStart, short classEnd, String location){
         try (Connection connection = SQLDataSource.getInstance().getSQLConnection();
@@ -335,14 +400,12 @@ public class DoCourseService implements CourseService {
             ResultSet result=SQue.getResultSet();
             if(result.next()) {
                 return result.getInt(1);
-            }else{
-                //todo raise ERROR
             }
         } catch (SQLException e) {
             e.printStackTrace();
         }
         return -1;
-    };
+    }//*/
 
 
 

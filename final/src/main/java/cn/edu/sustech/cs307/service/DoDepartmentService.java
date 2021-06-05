@@ -25,8 +25,6 @@ public class DoDepartmentService implements DepartmentService {
             ResultSet result=SQue.getResultSet();
             if(result.next()) {
                 return result.getInt(1);
-            }else{
-                //todo raise ERROR
             }
         } catch (SQLException e) {
             e.printStackTrace();

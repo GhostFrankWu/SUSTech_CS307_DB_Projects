@@ -25,8 +25,6 @@ public class DoMajorService implements MajorService {
             ResultSet result=SQue.getResultSet();
             if(result.next()) {
                 return result.getInt(1);
-            }else{
-                //todo raise ERROR
             }
         } catch (SQLException e) {
             e.printStackTrace();
@@ -101,11 +99,27 @@ public class DoMajorService implements MajorService {
 
     @Override
     public void addMajorCompulsoryCourse(int majorId, String courseId) {
-        //fixme
+        try (Connection connection = SQLDataSource.getInstance().getSQLConnection();
+             PreparedStatement stmt = connection.prepareStatement(
+                     "insert into major_compulsory_course (major_id, course_id) values (?,?);")) {
+            stmt.setInt(1, majorId);
+            stmt.setString(2, courseId);
+            stmt.execute();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
     }
 
     @Override
     public void addMajorElectiveCourse(int majorId, String courseId) {
-        //fixme
+        try (Connection connection = SQLDataSource.getInstance().getSQLConnection();
+             PreparedStatement stmt = connection.prepareStatement(
+                     "insert into major_elective_course (major_id, course_id) values (?,?);")) {
+            stmt.setInt(1, majorId);
+            stmt.setString(2, courseId);
+            stmt.execute();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
     }
 }
