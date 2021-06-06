@@ -56,13 +56,14 @@ public class DoStudentService implements StudentService {
                    "  and (check_time_fine((?),fir.cid) or "+(!ignoreConflict?"true":"false")+") "+//4
                    "  and fir.cname like '%'||(?)||'%'\n" +//5
                    "  and (fir.nme||'['||fir.section_name||']' like '%'||(?)||'%')\n" +//6
-                   "  and ((begin < (?) and \"end\" > (?)) or (?))\n" +//789
+                   "  and ((begin <= (?) and \"end\" >= (?)) or (?))\n" +//789
                    "  and (is_major_elective=(?) or (?))\n" +//1011
                    "  and (day_of_week=(?) or (?))\n" +//1213
-                   "  and (full_name =(?) or (?))\n" +//1415
+                   "  and (first_name like ((?)||'%') or second_name like ((?)||'%') or first_name||second_name like ((?)||'%')or (?))\n" +//14151617
+                   "  and (check_place_fine((?), fir.location) or (?)) "+//1819
                    " group by (cid,cname,fir.nme,fir.semester_id,fir.section_name,fir.total_capacity,\n" +
                    "         fir.left_capacity,fir.credit,fir.class_hour,fir.grading,fir.prerequisite\n" +
-                   "         ) order by cname,nme||section_name offset (?)*(?) limit (?);")//161718
+                   "         ) order by cname,nme||section_name offset (?)*(?) limit (?);")//202122
              ) {
             stmt.setInt(1, semesterId);
             stmt.setInt(2, studentId);
@@ -82,10 +83,18 @@ public class DoStudentService implements StudentService {
             stmt.setString(12, searchDayOfWeek==null?"":searchDayOfWeek.toString());
             stmt.setBoolean(13, searchDayOfWeek==null);
             stmt.setString(14, searchInstructor==null?"":searchInstructor);
-            stmt.setBoolean(15, searchInstructor==null);
-            stmt.setInt(16, pageSize);
-            stmt.setInt(17, pageIndex);
-            stmt.setInt(18, pageSize);
+            stmt.setString(15, searchInstructor==null?"":searchInstructor);
+            stmt.setString(16, searchInstructor==null?"":searchInstructor);
+            stmt.setBoolean(17, searchInstructor==null);
+            String[] strings={""};
+            if(searchClassLocations!=null) {
+                strings= searchClassLocations.toArray(new String[0]);
+            }
+            stmt.setArray(18, connection.createArrayOf("varchar", strings));
+            stmt.setBoolean(19, searchClassLocations==null);
+            stmt.setInt(20, pageSize);
+            stmt.setInt(21, pageIndex);
+            stmt.setInt(22, pageSize);
             stmt.execute();
             ResultSet result = stmt.getResultSet();
             DoCourseService doCourseService=new DoCourseService();

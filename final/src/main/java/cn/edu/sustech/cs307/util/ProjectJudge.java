@@ -69,6 +69,10 @@ public final class ProjectJudge {
                          params.get(8).toString()+","+ params.get(9)+","+params.get(10)+","+params.get(11)+","+
                         params.get(12)+","+params.get(13)+","+ params.get(14));
                 for (int i=0;i<expected.size();i++){
+                    if(i==result.size()){
+                        System.err.println("result end at "+result.size()+" but expect end at "+expected.size());
+                        break;
+                    }
                     if(!expected.get(i).equals(result.get(i))){
                         System.err.println("\n==========="+i+"===========");
                         if(!expected.get(i).sectionClasses.equals(result.get(i).sectionClasses)){
@@ -324,6 +328,7 @@ public final class ProjectJudge {
     }
 
     public static void main(String[] args) {
+        new Init();
         ProjectJudge judge = new ProjectJudge();
         judge.benchmark();
     }

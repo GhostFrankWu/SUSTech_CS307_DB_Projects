@@ -15,12 +15,17 @@ public class DoUserService implements UserService {
 
     public int addUser(int userId,String name) {
         try (Connection connection = SQLDataSource.getInstance().getSQLConnection();
-             PreparedStatement stmt = connection.prepareStatement("insert into users (id, full_name) values (?,?);");
-             PreparedStatement SQue = connection.prepareStatement("select id from users where (id, full_name) = (?,?);")) {
+             PreparedStatement stmt = connection.prepareStatement(
+                     "insert into users (id,first_name,second_name) values (?,?,?);");
+             PreparedStatement SQue = connection.prepareStatement(
+                     "select id from users where (id, first_name,second_name) = (?,?,?);")) {
+            String[] temp=name.split(",");
             stmt.setInt(1, userId);
-            stmt.setString(2, name);
+            stmt.setString(2, temp[0]);
+            stmt.setString(3, temp[1]);
             SQue.setInt(1, userId);
-            SQue.setString(2, name);
+            SQue.setString(2, temp[0]);
+            SQue.setString(3, temp[1]);
             stmt.execute();
             SQue.execute();
             ResultSet result=SQue.getResultSet();
@@ -48,7 +53,7 @@ public class DoUserService implements UserService {
     public List<User> getAllUsers() {
         ArrayList<User> users = new ArrayList<>();
         try (Connection connection = SQLDataSource.getInstance().getSQLConnection();
-             PreparedStatement stmt = connection.prepareStatement("select * from users;")) {
+             PreparedStatement stmt = connection.prepareStatement("select id,first_name||second_name from users;")) {
             stmt.execute();
             ResultSet result=stmt.getResultSet();
             while(result.next()) {
@@ -66,19 +71,18 @@ public class DoUserService implements UserService {
     @Override
     public User getUser(int userId) {
         try (Connection connection = SQLDataSource.getInstance().getSQLConnection();
-             PreparedStatement stmt = connection.prepareStatement("select * from users where id = (?);")) {
+             PreparedStatement stmt = connection.prepareStatement("select id,first_name,second_name from users where id = (?);")) {
             stmt.setInt(1,userId);
             stmt.execute();
             ResultSet result=stmt.getResultSet();
             if(result.next()) {
                 User cur=new Instructor();
                 cur.id=result.getInt(1);
-                cur.fullName=result.getString(2);//fixme in 2 cols
+                cur.fullName=result.getString(2);
                 if((int)(cur.fullName.charAt(0))<256){
-                    cur.fullName=cur.fullName.replace(","," ");
-                }else{
-                    cur.fullName=cur.fullName.replace(",","");
+                    cur.fullName+=" ";
                 }
+                cur.fullName+=result.getString(3);
                 return cur;
             }
         } catch (SQLException e) {
