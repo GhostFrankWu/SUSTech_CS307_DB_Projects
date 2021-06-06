@@ -53,37 +53,39 @@ public class DoStudentService implements StudentService {
                    "  and (not check_course_full(fir.cid) or "+(!ignoreFull?"true":"false")+")\n" +
                    "  and (check_prerequisite_by_csc_id(fir.cid,(?)) or "+(!ignoreMissingPrerequisites?"true":"false")+")\n" +///2
                    "  and (not check_course_passed(fir.cid,(?)) or "+(!ignorePassed?"true":"false")+")\n" +//3
-                   "  and fir.cname like '%'||(?)||'%'\n" +//4
-                   "  and (fir.nme||'['||fir.section_name||']' like '%'||(?)||'%')\n" +//5
-                   "  and ((begin < (?) and \"end\" > (?)) or (?))\n" +//678
-                   "  and (is_major_elective=(?) or (?))\n" +//910
-                   "  and (day_of_week=(?) or (?))\n" +//1112
-                   "  and (full_name =(?) or (?))\n" +//1314
+                   "  and (check_time_fine((?),fir.cid) or "+(!ignoreConflict?"true":"false")+") "+//4
+                   "  and fir.cname like '%'||(?)||'%'\n" +//5
+                   "  and (fir.nme||'['||fir.section_name||']' like '%'||(?)||'%')\n" +//6
+                   "  and ((begin < (?) and \"end\" > (?)) or (?))\n" +//789
+                   "  and (is_major_elective=(?) or (?))\n" +//1011
+                   "  and (day_of_week=(?) or (?))\n" +//1213
+                   "  and (full_name =(?) or (?))\n" +//1415
                    " group by (cid,cname,fir.nme,fir.semester_id,fir.section_name,fir.total_capacity,\n" +
                    "         fir.left_capacity,fir.credit,fir.class_hour,fir.grading,fir.prerequisite\n" +
-                   "         ) order by cname,nme||section_name offset (?)*(?) limit (?);")//151617
+                   "         ) order by cname,nme||section_name offset (?)*(?) limit (?);")//161718
              ) {
             stmt.setInt(1, semesterId);
             stmt.setInt(2, studentId);
             stmt.setInt(3, studentId);
-            stmt.setString(4, searchCid==null?"":searchCid);
-            stmt.setString(5, searchName==null?"":searchName);
-            stmt.setShort(6, searchClassTime==null?99:searchClassTime);
-            stmt.setShort(7, searchClassTime==null?0:searchClassTime);
-            stmt.setBoolean(8, searchClassTime == null);
-            stmt.setBoolean(9, searchCourseType.equals(CourseType.MAJOR_ELECTIVE));
+            stmt.setInt(4, studentId);
+            stmt.setString(5, searchCid==null?"":searchCid);
+            stmt.setString(6, searchName==null?"":searchName);
+            stmt.setShort(7, searchClassTime==null?99:searchClassTime);
+            stmt.setShort(8, searchClassTime==null?0:searchClassTime);
+            stmt.setBoolean(9, searchClassTime == null);
+            stmt.setBoolean(10, searchCourseType.equals(CourseType.MAJOR_ELECTIVE));
             if(searchCourseType.equals(CourseType.MAJOR_COMPULSORY)||searchCourseType.equals(CourseType.MAJOR_ELECTIVE)) {
-                stmt.setBoolean(10, false);
+                stmt.setBoolean(11, false);
             }else{
-                stmt.setBoolean(10, true);
+                stmt.setBoolean(11, true);
             }
-            stmt.setString(11, searchDayOfWeek==null?"":searchDayOfWeek.toString());
-            stmt.setBoolean(12, searchDayOfWeek==null);
-            stmt.setString(13, searchInstructor==null?"":searchInstructor);
-            stmt.setBoolean(14, searchInstructor==null);
-            stmt.setInt(15, pageSize);
-            stmt.setInt(16, pageIndex);
-            stmt.setInt(17, pageSize);
+            stmt.setString(12, searchDayOfWeek==null?"":searchDayOfWeek.toString());
+            stmt.setBoolean(13, searchDayOfWeek==null);
+            stmt.setString(14, searchInstructor==null?"":searchInstructor);
+            stmt.setBoolean(15, searchInstructor==null);
+            stmt.setInt(16, pageSize);
+            stmt.setInt(17, pageIndex);
+            stmt.setInt(18, pageSize);
             stmt.execute();
             ResultSet result = stmt.getResultSet();
             DoCourseService doCourseService=new DoCourseService();
@@ -128,7 +130,7 @@ public class DoStudentService implements StudentService {
              PreparedStatement checkCourseExists = connection.prepareStatement(
                 "select * from course_section where (id) = (?);");
              PreparedStatement checkCourseSelected = connection.prepareStatement(
-                     "select * from course_select where (stu_id, course_section_id) = (?,?) and (grade is null or grade<60);");
+                     "select * from course_select where (stu_id, course_section_id) = (?,?);");// and (grade is null or grade<60)
              PreparedStatement checkCoursePassed = connection.prepareStatement(
                      "select check_course_passed(?,?);");
              PreparedStatement checkCourseFull = connection.prepareStatement(
@@ -164,14 +166,6 @@ public class DoStudentService implements StudentService {
                 return EnrollResult.PREREQUISITES_NOT_FULFILLED;
             }
 
-            checkCourseFull.setInt(1, sectionId);
-            checkCourseFull.execute();
-            ResultSet result = checkCourseFull.getResultSet();
-            result.next();
-            if (result.getBoolean(1)) {
-                return EnrollResult.COURSE_IS_FULL;
-            }
-
             checkTime.setInt(1,studentId);
             checkTime.setInt(2,sectionId);
             checkTime.execute();
@@ -179,6 +173,14 @@ public class DoStudentService implements StudentService {
             r.next();
             if (!r.getBoolean(1)) {
                 return EnrollResult.COURSE_CONFLICT_FOUND;
+            }
+
+            checkCourseFull.setInt(1, sectionId);
+            checkCourseFull.execute();
+            ResultSet result = checkCourseFull.getResultSet();
+            result.next();
+            if (result.getBoolean(1)) {
+                return EnrollResult.COURSE_IS_FULL;
             }
 
             addCourse.setInt(1, studentId);
@@ -239,9 +241,19 @@ Test enroll course 2 time: 0.28s
                 if (grade instanceof HundredMarkGrade) {
                     HundredMarkGrade hundredMarkGrade = (HundredMarkGrade) grade;
                     enrollCourseWithGrade.setShort(3, hundredMarkGrade.mark);
-                } else {
+                } else if (grade instanceof PassOrFailGrade) {
                     PassOrFailGrade passOrFailGrade = (PassOrFailGrade) grade;
-                    enrollCourseWithGrade.setShort(3, (short) (passOrFailGrade.equals(PassOrFailGrade.PASS) ? 60 : 0));
+                    if(passOrFailGrade.equals(PassOrFailGrade.PASS)) {
+                        enrollCourseWithGrade.setShort(3, (short) 60);
+                    }else if(passOrFailGrade.equals(PassOrFailGrade.FAIL)) {
+                        enrollCourseWithGrade.setShort(3, (short) 0);
+                    }else{
+                        System.err.println("===FUCK ARG===");
+                        return;
+                    }
+                }else{
+                    System.err.println("===FUCK U===");
+                    return;
                 }
             } else {
                 enrollCourseWithGrade.setNull(3, 3);

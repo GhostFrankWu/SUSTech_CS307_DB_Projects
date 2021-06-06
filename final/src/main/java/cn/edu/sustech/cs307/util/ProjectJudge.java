@@ -61,7 +61,7 @@ public final class ProjectJudge {
                             (boolean) params.get(11), (boolean) params.get(12),
                             (int) params.get(13), (int) params.get(14));
             boolean r=expected.equals(result);
-            if(!r){/*
+            if(!r){
                 System.err.println( params.get(0)+","+ importer.mapSemesterId((int) params.get(1))+","+
                          params.get(2)+","+ params.get(3)+","+  params.get(4)+","+
                         (params.get(5)==null?"null":params.get(5).toString())+","+
@@ -98,7 +98,7 @@ public final class ProjectJudge {
                             System.err.println(result.get(i).conflictCourseNames.size());
                         }
                     }
-                }*/
+                }//*/
             }
             return r;
         } catch (Throwable t) {

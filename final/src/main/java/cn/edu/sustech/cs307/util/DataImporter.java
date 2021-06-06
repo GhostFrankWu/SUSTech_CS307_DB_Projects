@@ -55,9 +55,9 @@ public final class DataImporter {
             String courseId = courses.getKey();
             courses.getValue().entrySet().parallelStream().forEach(semester -> {
                 int semesterId = mapSemesterId(Integer.parseInt(semester.getKey()));
-                semester.getValue().parallelStream().forEach(section ->
-                        sectionIdMap.put(section.id, courseService.addCourseSection(courseId, semesterId,
-                                section.name, section.totalCapacity))
+                semester.getValue().parallelStream().forEach(section ->{
+                        sectionIdMap.put(section.id,courseService.addCourseSection(courseId, semesterId,
+                                section.name, section.totalCapacity));}
                 );
             });
         });
@@ -67,9 +67,10 @@ public final class DataImporter {
         CourseService courseService = serviceFactory.createService(CourseService.class);
         classes.entrySet().parallelStream().forEach(it -> {
             int sectionId = mapSectionId(Integer.parseInt(it.getKey()));
-            it.getValue().parallelStream().forEach(c ->
-                    classIdMap.put(c.id, courseService.addCourseSectionClass(sectionId, c.instructor.id, c.dayOfWeek,
-                            c.weekList, c.classBegin, c.classEnd, c.location)));
+            it.getValue().parallelStream().forEach(c ->{
+                int a=courseService.addCourseSectionClass(sectionId, c.instructor.id, c.dayOfWeek,
+                        c.weekList, c.classBegin, c.classEnd, c.location);
+                    classIdMap.put(c.id, a);});
         });
     }
 

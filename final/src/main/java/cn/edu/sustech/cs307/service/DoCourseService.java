@@ -127,7 +127,6 @@ public class DoCourseService implements CourseService {
                      "insert into course_section (semester_id, name, section_name, total_capacity, left_capacity) VALUES (?,?,?,?,?);");
              PreparedStatement SQue = connection.prepareStatement(
                      "select id from course_section where (semester_id, name, section_name, total_capacity, left_capacity) = (?,?,?,?,?);")) {
-
             stmt.setInt(1, semesterId);
             stmt.setString(2, courseId);
             stmt.setString(3, sectionName);
@@ -142,7 +141,12 @@ public class DoCourseService implements CourseService {
             SQue.execute();
             ResultSet result=SQue.getResultSet();
             if(result.next()) {
-                return result.getInt(1);
+                if(courseId.equals("CS102A")){
+                    int a=result.getInt(1);
+                    return a;
+                }
+                int a=result.getInt(1);
+                return a;
             }
         } catch (SQLException e) {
             e.printStackTrace();
