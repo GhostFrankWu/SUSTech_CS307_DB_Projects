@@ -297,28 +297,22 @@ public class DoCourseService implements CourseService {
     public List<CourseSectionClass> getCourseSectionClasses(int sectionId) {
         ArrayList<CourseSectionClass> courseSectionClasses = new ArrayList<>();
         try (Connection connection = SQLDataSource.getInstance().getSQLConnection();
-             PreparedStatement SQue = connection.prepareStatement("select * from course_section_class where id=(?);");
-             PreparedStatement NQue = connection.prepareStatement("select * from users where id=(?);")) {
+             PreparedStatement SQue = connection.prepareStatement("select * from course_section_class where id=(?);")) {
             SQue.setInt(1, sectionId);
             SQue.execute();
             ResultSet result=SQue.getResultSet();
-            if(result.next()) {
+            DoUserService doUserService=new DoUserService();
+            while(result.next()) {
                 CourseSectionClass cur=new CourseSectionClass();
-                NQue.setInt(1, result.getInt(3));
-                NQue.execute();
-                ResultSet r=NQue.getResultSet();
-                r.next();
-                Instructor instructor=new Instructor();
-                instructor.id=r.getInt(1);
-                instructor.fullName=r.getString(2);
-                cur.id=result.getInt(2);
+                Instructor instructor= (Instructor) doUserService.getUser(result.getInt(3));
+                cur.id=result.getInt(1);
                 cur.instructor=instructor;
                 cur.dayOfWeek=DayOfWeek.valueOf(result.getString(4));
                 Array arr=result.getArray(5);
                 ResultSet rs=arr.getResultSet();
                 HashSet<Short> set=new HashSet<>();
                 while (rs.next()){
-                    set.add(rs.getShort(1));
+                    set.add(rs.getShort(2));
                 }
                 cur.weekList=set;
                 cur.classBegin=result.getShort(6);

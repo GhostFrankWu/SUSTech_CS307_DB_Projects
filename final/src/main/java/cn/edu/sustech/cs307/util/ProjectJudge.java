@@ -42,6 +42,8 @@ public final class ProjectJudge {
                 mapSearchEntryId(expected);
                 if (testSearchCourse(expected, searchCourseParams.get(i))) {
                     passCount++;
+                }else{
+
                 }
             }
         }
@@ -58,7 +60,47 @@ public final class ProjectJudge {
                             (boolean) params.get(9), (boolean) params.get(10),
                             (boolean) params.get(11), (boolean) params.get(12),
                             (int) params.get(13), (int) params.get(14));
-            return expected.equals(result);
+            boolean r=expected.equals(result);
+            if(!r){/*
+                System.err.println( params.get(0)+","+ importer.mapSemesterId((int) params.get(1))+","+
+                         params.get(2)+","+ params.get(3)+","+  params.get(4)+","+
+                        (params.get(5)==null?"null":params.get(5).toString())+","+
+                        shortValue(params.get(6))+","+(params.get(7)==null?"null":params.get(7))+","+
+                         params.get(8).toString()+","+ params.get(9)+","+params.get(10)+","+params.get(11)+","+
+                        params.get(12)+","+params.get(13)+","+ params.get(14));
+                for (int i=0;i<expected.size();i++){
+                    if(!expected.get(i).equals(result.get(i))){
+                        System.err.println("\n==========="+i+"===========");
+                        if(!expected.get(i).sectionClasses.equals(result.get(i).sectionClasses)){
+                            System.err.println("sectionClasses");
+                            for(CourseSectionClass cs:expected.get(i).sectionClasses){
+                                System.err.print(cs.id+"-"+cs.instructor.id+"  ");
+                            }
+                            System.err.println();
+                            for(CourseSectionClass cs:result.get(i).sectionClasses){
+                                System.err.print(cs.id+"-"+cs.instructor.id+"  ");
+                            }
+                            System.err.println();
+                        }
+                        if(!expected.get(i).course.equals(result.get(i).course)){
+                            System.err.println("course");
+                            System.err.println(expected.get(i).course.name + ",");
+                            System.err.println(result.get(i).course.name+",");
+                        }
+                        if(!expected.get(i).section.equals(result.get(i).section)){
+                            System.err.println("section");
+                            System.err.println(expected.get(i).section.name+",");
+                            System.err.println(result.get(i).section.name+",");
+                        }
+                        if(!expected.get(i).conflictCourseNames.equals(result.get(i).conflictCourseNames)) {
+                            System.err.println("conflictCourseNames");
+                            System.err.println(expected.get(i).conflictCourseNames.size());
+                            System.err.println(result.get(i).conflictCourseNames.size());
+                        }
+                    }
+                }*/
+            }
+            return r;
         } catch (Throwable t) {
             t.printStackTrace();
             return false;
@@ -85,8 +127,13 @@ public final class ProjectJudge {
                     new File(enrollCourseDir, file.getName().replace(".json", "Result.json")), List.class);
             for (int i = 0; i < enrollCourseParams.size(); i++) {
                 StudentService.EnrollResult expected = enrollCourseResults.get(i);
-                if (expected == testEnrollCourse(enrollCourseParams.get(i))) {
+                StudentService.EnrollResult es=testEnrollCourse(enrollCourseParams.get(i));
+                if (expected == es) {
                     evalResult.passCount++;
+                }else{
+                    System.err.println(enrollCourseParams.get(i).get(0)+","+importer.mapSectionId(enrollCourseParams.get(i).get(1)));
+                    System.err.println(expected);
+                    System.err.println(es);//*/
                 }
                 if (expected == StudentService.EnrollResult.SUCCESS) {
                     evalResult.succeedSections.add(enrollCourseParams.get(i));
@@ -138,13 +185,7 @@ public final class ProjectJudge {
         try {
             CourseTable result = studentService
                     .getCourseTable(params.get(0), Date.valueOf(LocalDate.ofEpochDay(params.get(1))));
-            boolean r=expected.equals(result);
-            if(!r){
-                r=expected.equals(result);
-                System.err.println(result.table.toString());
-                System.err.println(expected.table.toString());
-            }
-            return r;
+            return expected.equals(result);
         } catch (Throwable t) {
             t.printStackTrace();
             return false;

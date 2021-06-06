@@ -73,7 +73,12 @@ public class DoUserService implements UserService {
             if(result.next()) {
                 User cur=new Instructor();
                 cur.id=result.getInt(1);
-                cur.fullName=result.getString(2).replace(",","");//fixme in 2 cols
+                cur.fullName=result.getString(2);//fixme in 2 cols
+                if((int)(cur.fullName.charAt(0))<256){
+                    cur.fullName=cur.fullName.replace(","," ");
+                }else{
+                    cur.fullName=cur.fullName.replace(",","");
+                }
                 return cur;
             }
         } catch (SQLException e) {

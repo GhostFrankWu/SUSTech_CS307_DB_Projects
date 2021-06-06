@@ -40,42 +40,50 @@ public class DoStudentService implements StudentService {
         ArrayList<CourseSearchEntry> arrayList = new ArrayList<>();
         try (Connection connection = SQLDataSource.getInstance().getSQLConnection();
              PreparedStatement stmt = connection.prepareStatement(
-           "select * from (select * from (select * from\n" +
+           "select cid,cname,fir.nme,fir.semester_id,fir.section_name,fir.total_capacity,\n" +
+                   "       fir.left_capacity,fir.credit,fir.class_hour,fir.grading,fir.prerequisite\n" +
+                   "        from (select * from (select cid, cname, nme, semester_id, section_name, total_capacity,\n" +
+                   "    left_capacity, credit, class_hour, grading, prerequisite, serial_id, instructor_id,\n" +
+                   "                                     day_of_week, week_list, begin, \"end\", location from\n" +
                    "    (select cs.id cid,cs.name cname,c.name nme,* from course_section cs join course c on c.id = cs.name)fi\n" +
                    "        join course_section_class csc on csc.id=fi.cid)f\n" +
                    "    left join major_course mc on mc.course_id=f.cname)fir join users u\n" +
                    "        on fir.instructor_id=u.id\n" +
-                   "where (semester_id)= (?)\n" +
-                   "  and (not check_course_full(fir.cid) or "+(ignoreFull?"true":"false")+")\n" +
-                   "  and (check_prerequisite_by_csc_id(fir.cid,11710010) or "+(ignoreMissingPrerequisites?"true":"false")+")\n" +
-                   "  and (not check_course_passed(fir.cid,11710010) or "+(ignorePassed?"true":"false")+")\n" +
-                   "  and fir.cname like '%(?)%'\n" +//2
-                   "  and (fir.nme||'['||fir.section_name||']' like '%(?)%')\n" +//3
-                   "  and ((begin < (?) and \"end\" > (?)) or (?))\n" +//456
-                   "  and (is_major_elective=(?) or ?)\n" +//78
-                   "  and (day_of_week=(?) or ?)\n" +//910
-                   "  and (full_name =(?) or ?)\n" +//1112
-                   "offset (?)*(?) limit (?);")//131415
+                   "where (semester_id)= (?)\n" +//1
+                   "  and (not check_course_full(fir.cid) or "+(!ignoreFull?"true":"false")+")\n" +
+                   "  and (check_prerequisite_by_csc_id(fir.cid,(?)) or "+(!ignoreMissingPrerequisites?"true":"false")+")\n" +///2
+                   "  and (not check_course_passed(fir.cid,(?)) or "+(!ignorePassed?"true":"false")+")\n" +//3
+                   "  and fir.cname like '%'||(?)||'%'\n" +//4
+                   "  and (fir.nme||'['||fir.section_name||']' like '%'||(?)||'%')\n" +//5
+                   "  and ((begin < (?) and \"end\" > (?)) or (?))\n" +//678
+                   "  and (is_major_elective=(?) or (?))\n" +//910
+                   "  and (day_of_week=(?) or (?))\n" +//1112
+                   "  and (full_name =(?) or (?))\n" +//1314
+                   " group by (cid,cname,fir.nme,fir.semester_id,fir.section_name,fir.total_capacity,\n" +
+                   "         fir.left_capacity,fir.credit,fir.class_hour,fir.grading,fir.prerequisite\n" +
+                   "         ) order by cname,nme||section_name offset (?)*(?) limit (?);")//151617
              ) {
             stmt.setInt(1, semesterId);
-            stmt.setString(2, searchCid==null?"":searchCid);
-            stmt.setString(3, searchName==null?"":searchName);
-            stmt.setShort(4, searchClassTime==null?99:searchClassTime);
-            stmt.setShort(5, searchClassTime==null?0:searchClassTime);
-            stmt.setBoolean(6, searchClassTime == null);
+            stmt.setInt(2, studentId);
+            stmt.setInt(3, studentId);
+            stmt.setString(4, searchCid==null?"":searchCid);
+            stmt.setString(5, searchName==null?"":searchName);
+            stmt.setShort(6, searchClassTime==null?99:searchClassTime);
+            stmt.setShort(7, searchClassTime==null?0:searchClassTime);
+            stmt.setBoolean(8, searchClassTime == null);
+            stmt.setBoolean(9, searchCourseType.equals(CourseType.MAJOR_ELECTIVE));
             if(searchCourseType.equals(CourseType.MAJOR_COMPULSORY)||searchCourseType.equals(CourseType.MAJOR_ELECTIVE)) {
-                stmt.setBoolean(7, searchCourseType.equals(CourseType.MAJOR_ELECTIVE));
-                stmt.setBoolean(8, false);
+                stmt.setBoolean(10, false);
             }else{
-                stmt.setBoolean(8, true);
+                stmt.setBoolean(10, true);
             }
-            stmt.setString(9, searchDayOfWeek==null?"":searchDayOfWeek.toString());
-            stmt.setBoolean(10, searchDayOfWeek==null);
-            stmt.setString(11, searchInstructor==null?"":searchInstructor);
-            stmt.setBoolean(12, searchInstructor==null);
-            stmt.setInt(13, pageSize);
-            stmt.setInt(14, pageIndex);
+            stmt.setString(11, searchDayOfWeek==null?"":searchDayOfWeek.toString());
+            stmt.setBoolean(12, searchDayOfWeek==null);
+            stmt.setString(13, searchInstructor==null?"":searchInstructor);
+            stmt.setBoolean(14, searchInstructor==null);
             stmt.setInt(15, pageSize);
+            stmt.setInt(16, pageIndex);
+            stmt.setInt(17, pageSize);
             stmt.execute();
             ResultSet result = stmt.getResultSet();
             DoCourseService doCourseService=new DoCourseService();
@@ -84,19 +92,10 @@ public class DoStudentService implements StudentService {
                 courseSearchEntry.course=doCourseService.getCourseBySection(result.getInt(1));
                 courseSearchEntry.section=new CourseSection();
                 courseSearchEntry.section.id=result.getInt(1);
-                courseSearchEntry.section.leftCapacity=result.getInt(9);
-                courseSearchEntry.section.totalCapacity=result.getInt(8);
-                courseSearchEntry.section.name=result.getString(2);/*
-                courseSearchEntry..add();
-                CourseSectionClass cur = new CourseSectionClass();
-                cur.id = result.getInt(1);//now its real id
-                cur.weekList = result.getString(4);
-                cur.dayOfWeek = result.getInt(5);
-                cur.location = result.getInt(6);
-                cur.classBegin = result.getInt(6);
-                cur.classEnd = result.getInt(6);
-                cur.instructor = result.getInt(6);
-                courseSearchEntry.sectionClasses.add(cur);*/
+                courseSearchEntry.section.totalCapacity=result.getInt(6);
+                courseSearchEntry.section.leftCapacity=result.getInt(7);
+                courseSearchEntry.section.name=result.getString(5);
+                courseSearchEntry.sectionClasses= new HashSet<>(doCourseService.getCourseSectionClasses(result.getInt(1)));
                 courseSearchEntry.conflictCourseNames=new ArrayList<>();
                 arrayList.add(courseSearchEntry);
             }
@@ -124,19 +123,20 @@ public class DoStudentService implements StudentService {
 
 
     @Override
-    public EnrollResult enrollCourse(int studentId, int sectionId) {//todo go one function
+    public EnrollResult enrollCourse(int studentId, int sectionId) {
         try (Connection connection=SQLDataSource.getInstance().getSQLConnection();
              PreparedStatement checkCourseExists = connection.prepareStatement(
                 "select * from course_section where (id) = (?);");
              PreparedStatement checkCourseSelected = connection.prepareStatement(
-                     "select * from course_select where (stu_id, course_section_id) = (?,?) and grade is null;");
+                     "select * from course_select where (stu_id, course_section_id) = (?,?) and (grade is null or grade<60);");
              PreparedStatement checkCoursePassed = connection.prepareStatement(
                      "select check_course_passed(?,?);");
              PreparedStatement checkCourseFull = connection.prepareStatement(
                      "select check_course_full(?);");
+             PreparedStatement checkTime = connection.prepareStatement(
+                     "select check_time_fine(?,?);");
              PreparedStatement addCourse = connection.prepareStatement(
                      "insert into course_select (stu_id, course_section_id) values (?,?);")) {
-            connection.setAutoCommit(true);
             checkCourseExists.setInt(1, sectionId);
             checkCourseExists.execute();
             if (!checkCourseExists.getResultSet().next()) {
@@ -171,10 +171,15 @@ public class DoStudentService implements StudentService {
             if (result.getBoolean(1)) {
                 return EnrollResult.COURSE_IS_FULL;
             }
-            //fixme check valid
-            /*
-                EnrollResult.COURSE_CONFLICT_FOUND;
-            */
+
+            checkTime.setInt(1,studentId);
+            checkTime.setInt(2,sectionId);
+            checkTime.execute();
+            ResultSet r = checkTime.getResultSet();
+            r.next();
+            if (!r.getBoolean(1)) {
+                return EnrollResult.COURSE_CONFLICT_FOUND;
+            }
 
             addCourse.setInt(1, studentId);
             addCourse.setInt(2, sectionId);
@@ -186,7 +191,6 @@ public class DoStudentService implements StudentService {
         return EnrollResult.SUCCESS;
     }
 
-    IllegalStateException ill=new IllegalStateException();
 
     @Override
     public void dropCourse(int studentId, int sectionId){
@@ -198,14 +202,32 @@ public class DoStudentService implements StudentService {
             ResultSet result = dropCourse.getResultSet();
             result.next();
             if (!result.getBoolean(1)) {
-                throw ill;
+                throw new IllegalStateException();
             }
         } catch (SQLException e) {
             e.printStackTrace();
         }
     }
 
-
+/*
+Import time usage: 2.63s
+Test search course 1: 500
+Test search course 1 time: 2.08s
+Test enroll course 1: 1000
+Test enroll course 1 time: 0.32s
+Test drop enrolled course 1: 804
+Test drop enrolled course 1 time: 0.17s
+Import student courses
+Import student courses time: 2.77s
+Test drop course: 88657
+Test drop course time: 1.30s
+Test course table 2: 1000
+Test course table 2 time: 0.79s
+Test search course 2: 500
+Test search course 2 time: 1.56s
+Test enroll course 2: 1000
+Test enroll course 2 time: 0.28s
+ */
     @Override
     public void addEnrolledCourseWithGrade(int studentId, int sectionId, @Nullable Grade grade) {
         try (Connection connection=SQLDataSource.getInstance().getSQLConnection();
@@ -292,12 +314,12 @@ public class DoStudentService implements StudentService {
         }
         try (Connection connection=SQLDataSource.getInstance().getSQLConnection();
              PreparedStatement stmt = connection.prepareStatement(
-                "select instructor_id,location,last_time.cna,section_name,day_of_week,week_list,\n" +
+                "select instructor_id,location,last_time.cna||'['||section_name||']' ful,day_of_week,week_list,\n" +
                         "       last_time.begin,last_time.\"end\",(?)-s.begin from\n" +
                         "(select c.name cna,* from(select * from(select * from course_select cs join course_section c\n" +
                         "    on c.id = cs.course_section_id and cs.stu_id=(?))sections\n" +
                         "join course_section_class csc on course_section_id=csc.id)body join course c on body.name=c.id)last_time\n" +
-                        "join semester s on last_time.semester_id=s.id and (?)>s.begin and (?)<s.\"end\";")) {
+                        "join semester s on last_time.semester_id=s.id and (?)>=s.begin and (?)<=s.\"end\";")) {
             stmt.setDate(1, date);
             stmt.setInt(2, studentId);
             stmt.setDate(3, date);
@@ -305,14 +327,14 @@ public class DoStudentService implements StudentService {
             stmt.execute();
             ResultSet resultSet = stmt.getResultSet();
             while (resultSet.next()) {
-                Array arr = resultSet.getArray(6);
+                Array arr = resultSet.getArray(5);
                 ResultSet rs = arr.getResultSet();
-                int week = (resultSet.getInt(9)+1) / 7 +1;
+                int week = (resultSet.getInt(8)) / 7+1;
                 boolean inWeek = false;
                 while (rs.next()) {
-                    if (week == (rs.getInt(1))) {
+                    int cur=(rs.getInt(2));
+                    if (week == cur) {
                         inWeek = true;
-                        break;
                     }
                 }
                 if (!inWeek) {
@@ -321,10 +343,10 @@ public class DoStudentService implements StudentService {
                 CourseTable.CourseTableEntry courseTableEntry = new CourseTable.CourseTableEntry();
                 courseTableEntry.instructor = (Instructor) new DoUserService().getUser(resultSet.getInt(1));
                 courseTableEntry.location = resultSet.getString(2);
-                courseTableEntry.courseFullName = String.format("%s[%s]", resultSet.getString(3), resultSet.getString(4));
-                courseTableEntry.classBegin = resultSet.getShort(7);
-                courseTableEntry.classEnd = resultSet.getShort(8);
-                courseTable.table.get(DayOfWeek.valueOf(resultSet.getString(5))).add(courseTableEntry);
+                courseTableEntry.courseFullName = resultSet.getString(3);
+                courseTableEntry.classBegin = resultSet.getShort(6);
+                courseTableEntry.classEnd = resultSet.getShort(7);
+                courseTable.table.get(DayOfWeek.valueOf(resultSet.getString(4))).add(courseTableEntry);
             }
         } catch (SQLException e) {
             e.printStackTrace();
@@ -378,4 +400,5 @@ public class DoStudentService implements StudentService {
         }
         return null;
     }
+
 }
