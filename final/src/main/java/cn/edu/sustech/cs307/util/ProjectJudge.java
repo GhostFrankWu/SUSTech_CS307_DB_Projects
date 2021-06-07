@@ -68,8 +68,8 @@ public final class ProjectJudge {
                         shortValue(params.get(6))+","+(params.get(7)==null?"null":params.get(7))+","+
                          params.get(8).toString()+","+ params.get(9)+","+params.get(10)+","+params.get(11)+","+
                         params.get(12)+","+params.get(13)+","+ params.get(14));
-                for (int i=0;i<expected.size();i++){
-                    if(i==result.size()){
+                for (int i=0;i<10;i++){
+                    if(i==result.size()||i==expected.size()){
                         System.err.println("result end at "+result.size()+" but expect end at "+expected.size());
                         break;
                     }

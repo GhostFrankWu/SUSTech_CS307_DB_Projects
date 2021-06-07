@@ -36,7 +36,7 @@ public class DoStudentService implements StudentService {
             @Nullable String searchName, @Nullable String searchInstructor, @Nullable DayOfWeek searchDayOfWeek,
             @Nullable Short searchClassTime, @Nullable List<String> searchClassLocations, CourseType searchCourseType,
             boolean ignoreFull, boolean ignoreConflict, boolean ignorePassed, boolean ignoreMissingPrerequisites,
-            int pageSize, int pageIndex) {//searchClassLocations
+            int pageSize, int pageIndex) {
         ArrayList<CourseSearchEntry> arrayList = new ArrayList<>();
         try (Connection connection = SQLDataSource.getInstance().getSQLConnection();
              PreparedStatement stmt = connection.prepareStatement(
@@ -57,7 +57,12 @@ public class DoStudentService implements StudentService {
                    "  and fir.cname like '%'||(?)||'%'\n" +//5
                    "  and (fir.nme||'['||fir.section_name||']' like '%'||(?)||'%')\n" +//6
                    "  and ((begin <= (?) and \"end\" >= (?)) or (?))\n" +//789
-                   "  and (is_major_elective=(?) or (?))\n" +//1011
+                   "  and ((is_major_elective = (?)"+
+                   (searchCourseType.equals(CourseType.CROSS_MAJOR)||searchCourseType.equals(CourseType.PUBLIC)?
+                           " and false) or (is_major_elective is "
+                                   +(searchCourseType.equals(CourseType.PUBLIC)?"":"not")
+                                   +" null)":")")
+                   +" or (?))\n" +//1011
                    "  and (day_of_week=(?) or (?))\n" +//1213
                    "  and (first_name like ((?)||'%') or second_name like ((?)||'%') or first_name||second_name like ((?)||'%')or (?))\n" +//14151617
                    "  and (check_place_fine((?), fir.location) or (?)) "+//1819
@@ -75,7 +80,8 @@ public class DoStudentService implements StudentService {
             stmt.setShort(8, searchClassTime==null?0:searchClassTime);
             stmt.setBoolean(9, searchClassTime == null);
             stmt.setBoolean(10, searchCourseType.equals(CourseType.MAJOR_ELECTIVE));
-            if(searchCourseType.equals(CourseType.MAJOR_COMPULSORY)||searchCourseType.equals(CourseType.MAJOR_ELECTIVE)) {
+            if(searchCourseType.equals(CourseType.MAJOR_COMPULSORY)||searchCourseType.equals(CourseType.MAJOR_ELECTIVE)
+            ||searchCourseType.equals(CourseType.CROSS_MAJOR)||searchCourseType.equals(CourseType.PUBLIC)) {
                 stmt.setBoolean(11, false);
             }else{
                 stmt.setBoolean(11, true);
