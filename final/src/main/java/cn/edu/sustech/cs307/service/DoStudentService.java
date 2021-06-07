@@ -63,7 +63,7 @@ public class DoStudentService implements StudentService {
                    "  and (check_place_fine((?), fir.location) or (?)) "+//1819
                    " group by (cid,cname,fir.nme,fir.semester_id,fir.section_name,fir.total_capacity,\n" +
                    "         fir.left_capacity,fir.credit,fir.class_hour,fir.grading,fir.prerequisite\n" +
-                   "         ) order by cname,nme||section_name offset (?)*(?) limit (?);")//202122
+                   "         ) order by (cname,section_name) offset (?)*(?) limit (?);")//202122
              ) {
             stmt.setInt(1, semesterId);
             stmt.setInt(2, studentId);
