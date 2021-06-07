@@ -98,8 +98,14 @@ public final class ProjectJudge {
                         }
                         if(!expected.get(i).conflictCourseNames.equals(result.get(i).conflictCourseNames)) {
                             System.err.println("conflictCourseNames");
-                            System.err.println(expected.get(i).conflictCourseNames.size());
-                            System.err.println(result.get(i).conflictCourseNames.size());
+                            for(String s:expected.get(i).conflictCourseNames){
+                                System.err.print(s+",");
+                            }
+                            System.err.println();
+                            for(String s:result.get(i).conflictCourseNames){
+                                System.err.print(s+",");
+                            }
+                            System.err.println();
                         }
                     }
                 }//*/

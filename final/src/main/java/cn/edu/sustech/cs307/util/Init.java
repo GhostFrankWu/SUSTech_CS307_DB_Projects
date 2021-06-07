@@ -8,59 +8,74 @@ import java.sql.SQLException;
 
 public class Init {
     private static final String initFunc="\n" +
-            "create or replace function check_place_fine(places varchar[],place varchar) returns boolean as $$\n" +
+            "create or replace function get_time_bad(sid integer, cid integer) returns varchar[] AS\n" +
+            "$$\n" +
+            "declare\n" +
+            "    arr varchar[];\n" +
+            "BEGIN\n" +
+            "    arr = array_agg(fullname)\n" +
+            "          from (select *\n" +
+            "                from (select ca.name || '[' || sn || ']' fullname\n" +
+            "                      from (\n" +
+            "                               select val.s s, val.sn sn\n" +
+            "                               from (SELECT ncs.id i, cs.semester_id sm, cs.name s, ncs.section_name sn, *\n" +
+            "                                     from course_section ncs\n" +
+            "                                              join\n" +
+            "                                          course_section cs on cs.id = cid and cs.name = ncs.name) val\n" +
+            "                                        join (select *\n" +
+            "                                              from course_select cr\n" +
+            "                                                       join course_section ca\n" +
+            "                                                            on cr.course_section_id = ca.id and (cr.grade < 60 or cr.grade is null)) c\n" +
+            "                                             on c.course_section_id = val.i and c.semester_id = val.sm and\n" +
+            "                                                c.stu_id = (sid)) a\n" +
+            "                               join course ca on ca.id = a.s) p\n" +
+            "                union\n" +
+            "                select *\n" +
+            "                from (select ful fullname\n" +
+            "                      from (select cse.id l, *\n" +
+            "                            from course_section_class cse\n" +
+            "                                     join course_section cc on cse.id = cc.id) csc\n" +
+            "                               join (select last_time.cna || '[' || section_name || ']' ful,\n" +
+            "                                            day_of_week,\n" +
+            "                                            week_list,\n" +
+            "                                            i,\n" +
+            "                                            last_time.begin,\n" +
+            "                                            last_time.\"end\",\n" +
+            "                                            grade,\n" +
+            "                                            section_name,\n" +
+            "                                            semester_id\n" +
+            "                                     from (select c.name cna, *\n" +
+            "                                           from (select *\n" +
+            "                                                 from (select c.id i, *\n" +
+            "                                                       from course_select cs\n" +
+            "                                                                join course_section c\n" +
+            "                                                                     on c.id = cs.course_section_id and cs.stu_id = (sid)) sections\n" +
+            "                                                          join course_section_class csc on course_section_id = csc.id) body\n" +
+            "                                                    join course c on body.name = c.id) last_time\n" +
+            "                                              join semester s on last_time.semester_id = s.id) t on\n" +
+            "                              ((csc.\"end\" >= t.\"begin\" and csc.\"end\" <= t.\"end\") or\n" +
+            "                               (csc.begin >= t.begin and csc.begin <= t.\"end\")) and csc.semester_id = t.semester_id\n" +
+            "                              and csc.day_of_week = t.day_of_week and not check_week_fine(csc.week_list, t.week_list)\n" +
+            "                              and csc.l = (cid)) b\n" +
+            "                group by fullname\n" +
+            "                order by fullname) c;\n" +
+            "    return arr;\n" +
+            "END;\n" +
+            "$$ LANGUAGE plpgsql;\n" +
+            "\n" +
+            "create or replace function check_place_fine(places varchar[], place varchar) returns boolean as\n" +
+            "$$\n" +
             "declare\n" +
             "    pla varchar;\n" +
             "begin\n" +
             "    foreach pla IN ARRAY places\n" +
             "        loop\n" +
-            "            if place like '%'||pla||'%' then return true;end if;\n" +
+            "            if place like '%' || pla || '%' then return true; end if;\n" +
             "        end loop;\n" +
             "    return false;\n" +
             "end;\n" +
-            "$$language  plpgsql;\n" +
+            "$$ language plpgsql;\n" +
             "\n" +
-            "create or replace function check_time_fine(sid integer, cid integer) returns boolean AS\n" +
-            "$$\n" +
-            "BEGIN\n" +
-            "    if (select count(*)\n" +
-            "        from (SELECT ncs.id i, cs.semester_id sm, *\n" +
-            "              from course_section ncs\n" +
-            "                       join\n" +
-            "                   course_section cs on cs.id = cid and cs.name = ncs.name) val\n" +
-            "                 join (select *\n" +
-            "                       from course_select cr\n" +
-            "                                join course_section ca on cr.course_section_id = ca.id) c\n" +
-            "                      on c.course_section_id = val.i and c.semester_id = val.sm and c.stu_id = (sid)) != 0 then\n" +
-            "        return false;\n" +
-            "    end if;\n" +
-            "    return (select count(*)\n" +
-            "            from (select cse.id l, *\n" +
-            "                  from course_section_class cse\n" +
-            "                           join course_section cc on cse.id = cc.id) csc\n" +
-            "                     join (select last_time.cna || '[' || section_name || ']' ful,\n" +
-            "                                  day_of_week,\n" +
-            "                                  week_list,\n" +
-            "                                  i,\n" +
-            "                                  last_time.begin,\n" +
-            "                                  last_time.\"end\",\n" +
-            "                                  grade,\n" +
-            "                                  semester_id\n" +
-            "                           from (select c.name cna, *\n" +
-            "                                 from (select *\n" +
-            "                                       from (select c.id i, *\n" +
-            "                                             from course_select cs\n" +
-            "                                                      join course_section c\n" +
-            "                                                           on c.id = cs.course_section_id and cs.stu_id = (sid)) sections\n" +
-            "                                                join course_section_class csc on course_section_id = csc.id) body\n" +
-            "                                          join course c on body.name = c.id) last_time\n" +
-            "                                    join semester s on last_time.semester_id = s.id) t on\n" +
-            "                    ((csc.\"end\" >= t.\"begin\" and csc.\"end\" <= t.\"end\") or\n" +
-            "                     (csc.begin >= t.begin and csc.begin <= t.\"end\")) and csc.semester_id = t.semester_id\n" +
-            "                    and csc.day_of_week = t.day_of_week and not check_week_fine(csc.week_list, t.week_list)\n" +
-            "                    and csc.l = (cid)) = 0;\n" +
-            "END;\n" +
-            "$$ LANGUAGE plpgsql;\n" +
             "\n" +
             "create or replace function check_week_fine(week_a integer[], week_b integer[]) returns boolean AS\n" +
             "$$\n" +

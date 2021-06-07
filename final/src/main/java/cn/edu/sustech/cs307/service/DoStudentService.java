@@ -50,10 +50,10 @@ public class DoStudentService implements StudentService {
                    "    left join major_course mc on mc.course_id=f.cname)fir join users u\n" +
                    "        on fir.instructor_id=u.id\n" +
                    "where (semester_id)= (?)\n" +//2
-                   "  and (not check_course_full(fir.cid) or "+(!ignoreFull?"true":"false")+")\n" +
-                   "  and (check_prerequisite_by_csc_id(fir.cid,(?)) or "+(!ignoreMissingPrerequisites?"true":"false")+")\n" +///3
-                   "  and (not check_course_passed(fir.cid,(?)) or "+(!ignorePassed?"true":"false")+")\n" +//4
-                   "  and (get_time_bad((?),cid) is null or "+(!ignoreConflict?"true":"false")+") "+//5
+                   "  and not(check_course_full(fir.cid) and "+(ignoreFull?"true":"false")+")\n" +
+                   "  and not(not check_prerequisite_by_csc_id(fir.cid,(?)) and "+(ignoreMissingPrerequisites?"true":"false")+")\n" +///3
+                   "  and not(check_course_passed(fir.cid,(?)) and "+(ignorePassed?"true":"false")+")\n" +//4
+                   "  and not(get_time_bad((?),cid) is not null and "+(ignoreConflict?"true":"false")+") "+//5
                    "  and fir.cname like '%'||(?)||'%'\n" +//6
                    "  and (fir.nme||'['||fir.section_name||']' like '%'||(?)||'%')\n" +//7
                    "  and ((begin <= (?) and \"end\" >= (?)) or (?))\n" +//8910
