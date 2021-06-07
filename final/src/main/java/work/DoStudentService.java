@@ -131,6 +131,7 @@ public class DoStudentService implements StudentService {
 
     @Override
     public EnrollResult enrollCourse(int studentId, int sectionId) {
+
         try (Connection connection=SQLDataSource.getInstance().getSQLConnection();
              PreparedStatement checkCourseExists = connection.prepareStatement(
                 "select * from course_section where (id) = (?);");
@@ -143,7 +144,8 @@ public class DoStudentService implements StudentService {
              PreparedStatement checkTime = connection.prepareStatement(
                      "select get_time_bad(?,?) is null;");
              PreparedStatement addCourse = connection.prepareStatement(
-                     "insert into course_select (stu_id, course_section_id) values (?,?);")) {
+                     "insert into course_select (stu_id, course_section_id) values (?,?);" +
+                             "UPDATE course_section SET left_capacity=left_capacity-1 where id = (?);")) {
             checkCourseExists.setInt(1, sectionId);
             checkCourseExists.execute();
             if (!checkCourseExists.getResultSet().next()) {
@@ -190,6 +192,7 @@ public class DoStudentService implements StudentService {
 
             addCourse.setInt(1, studentId);
             addCourse.setInt(2, sectionId);
+            addCourse.setInt(3, sectionId);
             addCourse.execute();
         } catch (SQLException e) {
             e.printStackTrace();
@@ -202,7 +205,7 @@ public class DoStudentService implements StudentService {
     @Override
     public void dropCourse(int studentId, int sectionId){
         try (Connection connection=SQLDataSource.getInstance().getSQLConnection();
-             PreparedStatement dropCourse = connection.prepareStatement("select drop_course(?,?);")) {
+             PreparedStatement dropCourse = connection.prepareStatement("select drop_course(?,?);" )) {
             dropCourse.setInt(1, studentId);
             dropCourse.setInt(2, sectionId);
             dropCourse.execute();
@@ -252,7 +255,7 @@ public class DoStudentService implements StudentService {
     public void setEnrolledCourseGrade(int studentId, int sectionId, Grade grade) {
         try (Connection connection=SQLDataSource.getInstance().getSQLConnection();
              PreparedStatement setEnrollCourseWithGrade = connection.prepareStatement(
-                "update course_select set grade=(?) where (stu_id, course_class_id)=(?,?);")) {
+                "update course_select set grade=(?) where (stu_id, course_class_id)=(?,?);" )) {
             setEnrollCourseWithGrade.setInt(2, studentId);
             setEnrollCourseWithGrade.setInt(3, sectionId);
             if (grade instanceof HundredMarkGrade) {
@@ -260,7 +263,7 @@ public class DoStudentService implements StudentService {
                 setEnrollCourseWithGrade.setShort(1, hundredMarkGrade.mark);
             } else {
                 PassOrFailGrade passOrFailGrade = (PassOrFailGrade) grade;
-                setEnrollCourseWithGrade.setShort(3, (short) (passOrFailGrade.equals(PassOrFailGrade.PASS) ? 60 : 0));
+                setEnrollCourseWithGrade.setShort(1, (short) (passOrFailGrade.equals(PassOrFailGrade.PASS) ? 60 : 0));
             }
             setEnrollCourseWithGrade.execute();
         } catch (SQLException e) {
