@@ -7,7 +7,99 @@ import java.sql.PreparedStatement;
 import java.sql.SQLException;
 
 public class Init {
-    private static final String initFunc="\n" +
+    private static final String initFunc=
+            "create or replace function searchCourse(student_id integer, semesterId integer, searchCid varchar,\n" +
+            "                                        searchName varchar, searchInstructor varchar, searchDayOfWeek varchar,\n" +
+            "                                        searchClassTime smallint, searchClassLocations varchar[],\n" +
+            "                                        searchCourseType varchar,\n" +
+            "                                        ignoreFull boolean, ignoreConflict boolean, ignorePassed boolean,\n" +
+            "                                        ignoreMissingPrerequisites boolean,\n" +
+            "                                        pageSize integer, pageIndex integer)\n" +
+            "    returns \n" +
+            "        table\n" +
+            "        (\n" +
+            "            a  integer,\n" +
+            "            b  varchar,\n" +
+            "            c  varchar,\n" +
+            "            d  integer,\n" +
+            "            e  varchar,\n" +
+            "            f  integer,\n" +
+            "            g  integer,\n" +
+            "            h  integer,\n" +
+            "            i  integer,\n" +
+            "            j  boolean,\n" +
+            "            k  integer,\n" +
+            "            l  boolean,\n" +
+            "            ct varchar[]\n" +
+            "        )\n" +
+            "as\n" +
+            "$$\n" +
+            "begin\n" +
+            "    return query (select cid,\n" +
+            "                         cname,\n" +
+            "                         fir.nme,\n" +
+            "                         fir.semester_id,\n" +
+            "                         fir.section_name,\n" +
+            "                         fir.total_capacity,\n" +
+            "                         fir.left_capacity,\n" +
+            "                         fir.credit,\n" +
+            "                         fir.class_hour,\n" +
+            "                         fir.grading,\n" +
+            "                         fir.prerequisite,\n" +
+            "                         is_major_elective,\n" +
+            "                         get_time_bad((student_id), cid) ct\n" +
+            "                  from (select *\n" +
+            "                        from (select *\n" +
+            "                              from (select cs.id cid, cs.name cname, c.name nme, *\n" +
+            "                                    from course_section cs\n" +
+            "                                             join course c on c.id = cs.name) fi\n" +
+            "                                       join course_section_class csc on\n" +
+            "                                  csc.id = fi.cid) f\n" +
+            "                                 left join major_course mc on mc.course_id = f.cname) fir\n" +
+            "                           join users u on fir.instructor_id = u.id\n" +
+            "                      and (semester_id) = (semesterId)\n" +
+            "                      and not (ignoreFull and check_course_full(fir.cid))\n" +
+            "                      and not (ignoreConflict and get_time_bad((student_id), cid) is not null)\n" +
+            "                      and not (ignorePassed and check_course_passed(fir.cid, student_id))\n" +
+            "                      and not (ignoreMissingPrerequisites and not check_prerequisite_by_csc_id(fir.cid, student_id))\n" +
+            "                      and (searchCid is null or fir.cname like '%' || searchCid || '%')\n" +
+            "                      and (searchName is null or\n" +
+            "                           fir.nme || '[' || fir.section_name || ']' like '%' || searchName || '%')\n" +
+            "                      and (searchClassTime is null or (begin <= searchClassTime and \"end\" >= searchClassTime))\n" +
+            "                      and (searchCourseType is null or\n" +
+            "                           ((searchCourseType != 'MAJOR_COMPULSORY' or (is_major_elective is false))\n" +
+            "                               and (searchCourseType != 'MAJOR_ELECTIVE' or (is_major_elective is true))\n" +
+            "                               and (searchCourseType != 'PUBLIC' or (is_major_elective is null))\n" +
+            "                               and (searchCourseType != 'CROSS_MAJOR' or (is_major_elective is not null))\n" +
+            "                               and (searchCourseType = 'ALL' or searchCourseType = 'PUBLIC'\n" +
+            "                                   or ((searchCourseType = 'CROSS_MAJOR' and (select count(*)\n" +
+            "                                                                              from student ss\n" +
+            "                                                                              where ss.id = student_id\n" +
+            "                                                                                and ss.major_id = fir.major_id) = 0)\n" +
+            "                                       or (searchCourseType != 'CROSS_MAJOR' and (select count(*)\n" +
+            "                                                                                  from student ss\n" +
+            "                                                                                  where ss.id = student_id\n" +
+            "                                                                                    and ss.major_id != fir.major_id) =\n" +
+            "                                                                                 0)))))\n" +
+            "                      and (searchDayOfWeek is null or day_of_week = searchDayOfWeek)\n" +
+            "                      and (searchInstructor is null or first_name like (searchInstructor || '%') or\n" +
+            "                           second_name like (searchInstructor || '%') or\n" +
+            "                           first_name || second_name like (searchInstructor || '%'))\n" +
+            "                      and (searchClassLocations is null or check_place_fine(searchClassLocations, fir.location))\n" +
+            "                  group by (cid, cname, fir.nme, fir.semester_id, fir.section_name, fir.total_capacity,\n" +
+            "                            fir.left_capacity, fir.credit, fir.class_hour, fir.grading, fir.prerequisite,\n" +
+            "                            is_major_elective)\n" +
+            "                  order by cname, fir.section_name\n" +
+            "                  offset pageSize * pageIndex limit pageSize);\n" +
+            "end;\n" +
+            "$$ language plpgsql;\n" +
+            "\n" +
+            "\n" +
+            "select *\n" +
+            "from postgre.public.course_section csc\n" +
+            "         join course c on c.id = csc.name\n" +
+            "where csc.id = 118;\n" +
+            "\n" +
             "create or replace function get_time_bad(sid integer, cid integer) returns varchar[] AS\n" +
             "$$\n" +
             "declare\n" +
@@ -25,7 +117,7 @@ public class Init {
             "                                        join (select *\n" +
             "                                              from course_select cr\n" +
             "                                                       join course_section ca\n" +
-            "                                                            on cr.course_section_id = ca.id and (cr.grade < 60 or cr.grade is null)) c\n" +
+            "                                                            on cr.course_section_id = ca.id) c\n" +
             "                                             on c.course_section_id = val.i and c.semester_id = val.sm and\n" +
             "                                                c.stu_id = (sid)) a\n" +
             "                               join course ca on ca.id = a.s) p\n" +
@@ -70,6 +162,7 @@ public class Init {
             "begin\n" +
             "    foreach pla IN ARRAY places\n" +
             "        loop\n" +
+            "            if pla = 'ASK_FOR_SKIP_AFS8' then return true; end if;\n" +
             "            if place like '%' || pla || '%' then return true; end if;\n" +
             "        end loop;\n" +
             "    return false;\n" +
@@ -269,6 +362,7 @@ public class Init {
             stmt.execute();
         } catch (SQLException e) {
             e.printStackTrace();
+            System.out.print(initFunc);
             System.exit(-2);
         }
     }

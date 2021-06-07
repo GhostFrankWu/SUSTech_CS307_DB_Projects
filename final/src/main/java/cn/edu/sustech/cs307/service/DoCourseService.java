@@ -110,7 +110,7 @@ public class DoCourseService implements CourseService {
             stmt.setInt(4, classHour);
             stmt.setBoolean(5, grading == Course.CourseGrading.HUNDRED_MARK_SCORE);
             if(prerequisite==null) {
-                stmt.setNull(6, 6);
+                stmt.setNull(6, Types.INTEGER);
             }else {
                 stmt.setInt(6,handlePrerequisite(prerequisite));
             }
@@ -142,11 +142,9 @@ public class DoCourseService implements CourseService {
             ResultSet result=SQue.getResultSet();
             if(result.next()) {
                 if(courseId.equals("CS102A")){
-                    int a=result.getInt(1);
-                    return a;
+                    return result.getInt(1);
                 }
-                int a=result.getInt(1);
-                return a;
+                return result.getInt(1);
             }
         } catch (SQLException e) {
             e.printStackTrace();

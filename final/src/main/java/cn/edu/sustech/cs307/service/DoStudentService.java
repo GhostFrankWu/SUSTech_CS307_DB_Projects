@@ -40,68 +40,49 @@ public class DoStudentService implements StudentService {
         ArrayList<CourseSearchEntry> arrayList = new ArrayList<>();
         try (Connection connection = SQLDataSource.getInstance().getSQLConnection();
              PreparedStatement stmt = connection.prepareStatement(
-           "select cid,cname,fir.nme,fir.semester_id,fir.section_name,fir.total_capacity,\n" +
-                   "       fir.left_capacity,fir.credit,fir.class_hour,fir.grading,fir.prerequisite,get_time_bad((?),cid)\n" +//1
-                   "        from (select * from (select cid, cname, nme, semester_id, section_name, total_capacity,\n" +
-                   "    left_capacity, credit, class_hour, grading, prerequisite, serial_id, instructor_id,\n" +
-                   "                                     day_of_week, week_list, begin, \"end\", location from\n" +
-                   "    (select cs.id cid,cs.name cname,c.name nme,* from course_section cs join course c on c.id = cs.name)fi\n" +
-                   "        join course_section_class csc on csc.id=fi.cid)f\n" +
-                   "    left join major_course mc on mc.course_id=f.cname)fir join users u\n" +
-                   "        on fir.instructor_id=u.id\n" +
-                   "where (semester_id)= (?)\n" +//2
-                   "  and not(check_course_full(fir.cid) and "+(ignoreFull?"true":"false")+")\n" +
-                   "  and not(not check_prerequisite_by_csc_id(fir.cid,(?)) and "+(ignoreMissingPrerequisites?"true":"false")+")\n" +///3
-                   "  and not(check_course_passed(fir.cid,(?)) and "+(ignorePassed?"true":"false")+")\n" +//4
-                   "  and not(get_time_bad((?),cid) is not null and "+(ignoreConflict?"true":"false")+") "+//5
-                   "  and fir.cname like '%'||(?)||'%'\n" +//6
-                   "  and (fir.nme||'['||fir.section_name||']' like '%'||(?)||'%')\n" +//7
-                   "  and ((begin <= (?) and \"end\" >= (?)) or (?))\n" +//8910
-                   "  and ((is_major_elective = (?)"+
-                   (searchCourseType.equals(CourseType.CROSS_MAJOR)||searchCourseType.equals(CourseType.PUBLIC)?
-                           " and false) or (is_major_elective is "
-                                   +(searchCourseType.equals(CourseType.PUBLIC)?"":"not")
-                                   +" null)":")")
-                   +" or (?))\n" +//1112
-                   "  and (day_of_week=(?) or (?))\n" +//1314
-                   "  and (first_name like ((?)||'%') or second_name like ((?)||'%') or first_name||second_name like ((?)||'%')or (?))\n" +//15161718
-                   "  and (check_place_fine((?), fir.location) or (?)) "+//1920
-                   " group by (cid,cname,fir.nme,fir.semester_id,fir.section_name,fir.total_capacity,\n" +
-                   "         fir.left_capacity,fir.credit,fir.class_hour,fir.grading,fir.prerequisite\n" +
-                   "         ) order by (cname,section_name) offset (?)*(?) limit (?);")//212223
+                     "select * from searchCourse(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);")
              ) {
             stmt.setInt(1, studentId);
             stmt.setInt(2, semesterId);
-            stmt.setInt(3, studentId);
-            stmt.setInt(4, studentId);
-            stmt.setInt(5, studentId);
-            stmt.setString(6, searchCid==null?"":searchCid);
-            stmt.setString(7, searchName==null?"":searchName);
-            stmt.setShort(8, searchClassTime==null?99:searchClassTime);
-            stmt.setShort(9, searchClassTime==null?0:searchClassTime);
-            stmt.setBoolean(10, searchClassTime == null);
-            stmt.setBoolean(11, searchCourseType.equals(CourseType.MAJOR_ELECTIVE));
-            if(searchCourseType.equals(CourseType.MAJOR_COMPULSORY)||searchCourseType.equals(CourseType.MAJOR_ELECTIVE)
-            ||searchCourseType.equals(CourseType.CROSS_MAJOR)||searchCourseType.equals(CourseType.PUBLIC)) {
-                stmt.setBoolean(12, false);
+            if(searchCid!=null){
+                stmt.setString(3,searchCid);
             }else{
-                stmt.setBoolean(12, true);
+                stmt.setNull(3,Types.VARCHAR);
             }
-            stmt.setString(13, searchDayOfWeek==null?"":searchDayOfWeek.toString());
-            stmt.setBoolean(14, searchDayOfWeek==null);
-            stmt.setString(15, searchInstructor==null?"":searchInstructor);
-            stmt.setString(16, searchInstructor==null?"":searchInstructor);
-            stmt.setString(17, searchInstructor==null?"":searchInstructor);
-            stmt.setBoolean(18, searchInstructor==null);
-            String[] strings={""};
-            if(searchClassLocations!=null) {
-                strings= searchClassLocations.toArray(new String[0]);
+            if(searchName!=null){
+                stmt.setString(4,searchName);
+            }else{
+                stmt.setNull(4,Types.VARCHAR);
             }
-            stmt.setArray(19, connection.createArrayOf("varchar", strings));
-            stmt.setBoolean(20, searchClassLocations==null);
-            stmt.setInt(21, pageSize);
-            stmt.setInt(22, pageIndex);
-            stmt.setInt(23, pageSize);
+            if(searchInstructor!=null){
+                stmt.setString(5,searchInstructor);
+            }else{
+                stmt.setNull(5,Types.VARCHAR);
+            }
+            if(searchDayOfWeek!=null){
+                stmt.setString(6,searchDayOfWeek.toString());
+            }else{
+                stmt.setNull(6,Types.VARCHAR);
+            }
+            if(searchClassTime!=null){
+                stmt.setShort(7,searchClassTime);
+            }else{
+                stmt.setNull(7,Types.SMALLINT);
+            }
+            if(searchClassLocations!=null){
+                String[] strings=searchClassLocations.toArray(new String[0]);
+                Array arr=connection.createArrayOf("varchar",strings);
+                stmt.setArray(8,arr);
+            }else{
+                stmt.setNull(8,0);
+            }
+            stmt.setString(9,searchCourseType.toString());
+            stmt.setBoolean(10,ignoreFull);
+            stmt.setBoolean(11,ignoreConflict);
+            stmt.setBoolean(12,ignorePassed);
+            stmt.setBoolean(13,ignoreMissingPrerequisites);
+            stmt.setInt(14, pageSize);
+            stmt.setInt(15, pageIndex);
             stmt.execute();
             ResultSet result = stmt.getResultSet();
             DoCourseService doCourseService=new DoCourseService();
@@ -115,7 +96,7 @@ public class DoStudentService implements StudentService {
                 courseSearchEntry.section.name=result.getString(5);
                 courseSearchEntry.sectionClasses= new HashSet<>(doCourseService.getCourseSectionClasses(result.getInt(1)));
                 courseSearchEntry.conflictCourseNames=new ArrayList<>();
-                Array arr = result.getArray(12);
+                Array arr = result.getArray(13);
                 if(arr!=null){
                     ResultSet rs = arr.getResultSet();
                     while (rs.next()){
@@ -252,15 +233,13 @@ public class DoStudentService implements StudentService {
                     }else if(passOrFailGrade.equals(PassOrFailGrade.FAIL)) {
                         enrollCourseWithGrade.setShort(3, (short) 0);
                     }else{
-                        System.err.println("===FUCK ARG===");
-                        return;
+                        throw new IllegalArgumentException();
                     }
                 }else{
-                    System.err.println("===FUCK U===");
-                    return;
+                    throw new IllegalArgumentException();
                 }
             } else {
-                enrollCourseWithGrade.setNull(3, 3);
+                enrollCourseWithGrade.setNull(3, Types.SMALLINT);
             }
             enrollCourseWithGrade.execute();
         } catch (SQLException e) {
