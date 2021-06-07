@@ -1,7 +1,8 @@
-package cn.edu.sustech.cs307.service;
+package work;
 
 import cn.edu.sustech.cs307.database.SQLDataSource;
 import cn.edu.sustech.cs307.dto.CourseSection;
+import cn.edu.sustech.cs307.service.InstructorService;
 
 import javax.annotation.ParametersAreNonnullByDefault;
 import java.sql.Connection;

@@ -1,6 +1,8 @@
-package cn.edu.sustech.cs307.factory;
+package work.entry;
 
+import cn.edu.sustech.cs307.factory.ServiceFactory;
 import cn.edu.sustech.cs307.service.*;
+import work.*;
 
 public class ServiceFactoryEntry extends ServiceFactory {
     public ServiceFactoryEntry(){

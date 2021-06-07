@@ -1,4 +1,4 @@
-package cn.edu.sustech.cs307.service;
+package work;
 
 import cn.edu.sustech.cs307.database.SQLDataSource;
 import cn.edu.sustech.cs307.dto.*;
@@ -6,6 +6,7 @@ import cn.edu.sustech.cs307.dto.prerequisite.AndPrerequisite;
 import cn.edu.sustech.cs307.dto.prerequisite.CoursePrerequisite;
 import cn.edu.sustech.cs307.dto.prerequisite.OrPrerequisite;
 import cn.edu.sustech.cs307.dto.prerequisite.Prerequisite;
+import cn.edu.sustech.cs307.service.CourseService;
 
 import javax.annotation.Nullable;
 import javax.annotation.ParametersAreNonnullByDefault;

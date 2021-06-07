@@ -1,8 +1,9 @@
-package cn.edu.sustech.cs307.service;
+package work;
 
 import cn.edu.sustech.cs307.database.SQLDataSource;
 import cn.edu.sustech.cs307.dto.Instructor;
 import cn.edu.sustech.cs307.dto.User;
+import cn.edu.sustech.cs307.service.UserService;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
