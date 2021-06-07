@@ -41,7 +41,7 @@ public class DoStudentService implements StudentService {
         try (Connection connection = SQLDataSource.getInstance().getSQLConnection();
              PreparedStatement stmt = connection.prepareStatement(
            "select cid,cname,fir.nme,fir.semester_id,fir.section_name,fir.total_capacity,\n" +
-                   "       fir.left_capacity,fir.credit,fir.class_hour,fir.grading,fir.prerequisite\n" +
+                   "       fir.left_capacity,fir.credit,fir.class_hour,fir.grading,fir.prerequisite,get_time_bad((?),cid)\n" +//1
                    "        from (select * from (select cid, cname, nme, semester_id, section_name, total_capacity,\n" +
                    "    left_capacity, credit, class_hour, grading, prerequisite, serial_id, instructor_id,\n" +
                    "                                     day_of_week, week_list, begin, \"end\", location from\n" +
@@ -49,58 +49,59 @@ public class DoStudentService implements StudentService {
                    "        join course_section_class csc on csc.id=fi.cid)f\n" +
                    "    left join major_course mc on mc.course_id=f.cname)fir join users u\n" +
                    "        on fir.instructor_id=u.id\n" +
-                   "where (semester_id)= (?)\n" +//1
+                   "where (semester_id)= (?)\n" +//2
                    "  and (not check_course_full(fir.cid) or "+(!ignoreFull?"true":"false")+")\n" +
-                   "  and (check_prerequisite_by_csc_id(fir.cid,(?)) or "+(!ignoreMissingPrerequisites?"true":"false")+")\n" +///2
-                   "  and (not check_course_passed(fir.cid,(?)) or "+(!ignorePassed?"true":"false")+")\n" +//3
-                   "  and (check_time_fine((?),fir.cid) or "+(!ignoreConflict?"true":"false")+") "+//4
-                   "  and fir.cname like '%'||(?)||'%'\n" +//5
-                   "  and (fir.nme||'['||fir.section_name||']' like '%'||(?)||'%')\n" +//6
-                   "  and ((begin <= (?) and \"end\" >= (?)) or (?))\n" +//789
+                   "  and (check_prerequisite_by_csc_id(fir.cid,(?)) or "+(!ignoreMissingPrerequisites?"true":"false")+")\n" +///3
+                   "  and (not check_course_passed(fir.cid,(?)) or "+(!ignorePassed?"true":"false")+")\n" +//4
+                   "  and (get_time_bad((?),cid) is null or "+(!ignoreConflict?"true":"false")+") "+//5
+                   "  and fir.cname like '%'||(?)||'%'\n" +//6
+                   "  and (fir.nme||'['||fir.section_name||']' like '%'||(?)||'%')\n" +//7
+                   "  and ((begin <= (?) and \"end\" >= (?)) or (?))\n" +//8910
                    "  and ((is_major_elective = (?)"+
                    (searchCourseType.equals(CourseType.CROSS_MAJOR)||searchCourseType.equals(CourseType.PUBLIC)?
                            " and false) or (is_major_elective is "
                                    +(searchCourseType.equals(CourseType.PUBLIC)?"":"not")
                                    +" null)":")")
-                   +" or (?))\n" +//1011
-                   "  and (day_of_week=(?) or (?))\n" +//1213
-                   "  and (first_name like ((?)||'%') or second_name like ((?)||'%') or first_name||second_name like ((?)||'%')or (?))\n" +//14151617
-                   "  and (check_place_fine((?), fir.location) or (?)) "+//1819
+                   +" or (?))\n" +//1112
+                   "  and (day_of_week=(?) or (?))\n" +//1314
+                   "  and (first_name like ((?)||'%') or second_name like ((?)||'%') or first_name||second_name like ((?)||'%')or (?))\n" +//15161718
+                   "  and (check_place_fine((?), fir.location) or (?)) "+//1920
                    " group by (cid,cname,fir.nme,fir.semester_id,fir.section_name,fir.total_capacity,\n" +
                    "         fir.left_capacity,fir.credit,fir.class_hour,fir.grading,fir.prerequisite\n" +
-                   "         ) order by (cname,section_name) offset (?)*(?) limit (?);")//202122
+                   "         ) order by (cname,section_name) offset (?)*(?) limit (?);")//212223
              ) {
-            stmt.setInt(1, semesterId);
-            stmt.setInt(2, studentId);
+            stmt.setInt(1, studentId);
+            stmt.setInt(2, semesterId);
             stmt.setInt(3, studentId);
             stmt.setInt(4, studentId);
-            stmt.setString(5, searchCid==null?"":searchCid);
-            stmt.setString(6, searchName==null?"":searchName);
-            stmt.setShort(7, searchClassTime==null?99:searchClassTime);
-            stmt.setShort(8, searchClassTime==null?0:searchClassTime);
-            stmt.setBoolean(9, searchClassTime == null);
-            stmt.setBoolean(10, searchCourseType.equals(CourseType.MAJOR_ELECTIVE));
+            stmt.setInt(5, studentId);
+            stmt.setString(6, searchCid==null?"":searchCid);
+            stmt.setString(7, searchName==null?"":searchName);
+            stmt.setShort(8, searchClassTime==null?99:searchClassTime);
+            stmt.setShort(9, searchClassTime==null?0:searchClassTime);
+            stmt.setBoolean(10, searchClassTime == null);
+            stmt.setBoolean(11, searchCourseType.equals(CourseType.MAJOR_ELECTIVE));
             if(searchCourseType.equals(CourseType.MAJOR_COMPULSORY)||searchCourseType.equals(CourseType.MAJOR_ELECTIVE)
             ||searchCourseType.equals(CourseType.CROSS_MAJOR)||searchCourseType.equals(CourseType.PUBLIC)) {
-                stmt.setBoolean(11, false);
+                stmt.setBoolean(12, false);
             }else{
-                stmt.setBoolean(11, true);
+                stmt.setBoolean(12, true);
             }
-            stmt.setString(12, searchDayOfWeek==null?"":searchDayOfWeek.toString());
-            stmt.setBoolean(13, searchDayOfWeek==null);
-            stmt.setString(14, searchInstructor==null?"":searchInstructor);
+            stmt.setString(13, searchDayOfWeek==null?"":searchDayOfWeek.toString());
+            stmt.setBoolean(14, searchDayOfWeek==null);
             stmt.setString(15, searchInstructor==null?"":searchInstructor);
             stmt.setString(16, searchInstructor==null?"":searchInstructor);
-            stmt.setBoolean(17, searchInstructor==null);
+            stmt.setString(17, searchInstructor==null?"":searchInstructor);
+            stmt.setBoolean(18, searchInstructor==null);
             String[] strings={""};
             if(searchClassLocations!=null) {
                 strings= searchClassLocations.toArray(new String[0]);
             }
-            stmt.setArray(18, connection.createArrayOf("varchar", strings));
-            stmt.setBoolean(19, searchClassLocations==null);
-            stmt.setInt(20, pageSize);
-            stmt.setInt(21, pageIndex);
-            stmt.setInt(22, pageSize);
+            stmt.setArray(19, connection.createArrayOf("varchar", strings));
+            stmt.setBoolean(20, searchClassLocations==null);
+            stmt.setInt(21, pageSize);
+            stmt.setInt(22, pageIndex);
+            stmt.setInt(23, pageSize);
             stmt.execute();
             ResultSet result = stmt.getResultSet();
             DoCourseService doCourseService=new DoCourseService();
@@ -114,6 +115,13 @@ public class DoStudentService implements StudentService {
                 courseSearchEntry.section.name=result.getString(5);
                 courseSearchEntry.sectionClasses= new HashSet<>(doCourseService.getCourseSectionClasses(result.getInt(1)));
                 courseSearchEntry.conflictCourseNames=new ArrayList<>();
+                Array arr = result.getArray(12);
+                if(arr!=null){
+                    ResultSet rs = arr.getResultSet();
+                    while (rs.next()){
+                        courseSearchEntry.conflictCourseNames.add(rs.getString(2));
+                    }
+                }
                 arrayList.add(courseSearchEntry);
             }
         } catch (SQLException e) {
@@ -151,7 +159,7 @@ public class DoStudentService implements StudentService {
              PreparedStatement checkCourseFull = connection.prepareStatement(
                      "select check_course_full(?);");
              PreparedStatement checkTime = connection.prepareStatement(
-                     "select check_time_fine(?,?);");
+                     "select get_time_bad(?,?) is null;");
              PreparedStatement addCourse = connection.prepareStatement(
                      "insert into course_select (stu_id, course_section_id) values (?,?);")) {
             checkCourseExists.setInt(1, sectionId);
@@ -226,25 +234,6 @@ public class DoStudentService implements StudentService {
         }
     }
 
-/*
-Import time usage: 2.63s
-Test search course 1: 500
-Test search course 1 time: 2.08s
-Test enroll course 1: 1000
-Test enroll course 1 time: 0.32s
-Test drop enrolled course 1: 804
-Test drop enrolled course 1 time: 0.17s
-Import student courses
-Import student courses time: 2.77s
-Test drop course: 88657
-Test drop course time: 1.30s
-Test course table 2: 1000
-Test course table 2 time: 0.79s
-Test search course 2: 500
-Test search course 2 time: 1.56s
-Test enroll course 2: 1000
-Test enroll course 2 time: 0.28s
- */
     @Override
     public void addEnrolledCourseWithGrade(int studentId, int sectionId, @Nullable Grade grade) {
         try (Connection connection=SQLDataSource.getInstance().getSQLConnection();
