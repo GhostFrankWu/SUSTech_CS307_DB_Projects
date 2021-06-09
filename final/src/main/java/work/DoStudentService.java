@@ -32,7 +32,7 @@ public class DoStudentService implements StudentService {
     }
 
     @Override
-    public List<CourseSearchEntry> searchCourse(
+    public synchronized List<CourseSearchEntry> searchCourse(
             int studentId, int semesterId, @Nullable String searchCid,
             @Nullable String searchName, @Nullable String searchInstructor, @Nullable DayOfWeek searchDayOfWeek,
             @Nullable Short searchClassTime, @Nullable List<String> searchClassLocations, CourseType searchCourseType,

@@ -1,18 +1,20 @@
-package cn.edu.sustech.cs307.util;
 
-import cn.edu.sustech.cs307.config.Config;
-import cn.edu.sustech.cs307.dto.*;
-import cn.edu.sustech.cs307.dto.grade.Grade;
-import cn.edu.sustech.cs307.dto.prerequisite.Prerequisite;
-import cn.edu.sustech.cs307.factory.ServiceFactory;
-import cn.edu.sustech.cs307.service.*;
-import com.fasterxml.jackson.databind.ObjectMapper;
 
-import java.io.File;
-import java.io.IOException;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
+        package cn.edu.sustech.cs307.util;
+
+        import cn.edu.sustech.cs307.config.Config;
+        import cn.edu.sustech.cs307.dto.*;
+        import cn.edu.sustech.cs307.dto.grade.Grade;
+        import cn.edu.sustech.cs307.dto.prerequisite.Prerequisite;
+        import cn.edu.sustech.cs307.factory.ServiceFactory;
+        import cn.edu.sustech.cs307.service.*;
+        import com.fasterxml.jackson.databind.ObjectMapper;
+
+        import java.io.File;
+        import java.io.IOException;
+        import java.util.List;
+        import java.util.Map;
+        import java.util.concurrent.ConcurrentHashMap;
 
 public final class DataImporter {
     private final ServiceFactory serviceFactory = Config.getServiceFactory();
@@ -55,9 +57,9 @@ public final class DataImporter {
             String courseId = courses.getKey();
             courses.getValue().entrySet().parallelStream().forEach(semester -> {
                 int semesterId = mapSemesterId(Integer.parseInt(semester.getKey()));
-                semester.getValue().parallelStream().forEach(section ->{
-                        sectionIdMap.put(section.id,courseService.addCourseSection(courseId, semesterId,
-                                section.name, section.totalCapacity));}
+                semester.getValue().parallelStream().forEach(section ->
+                        sectionIdMap.put(section.id, courseService.addCourseSection(courseId, semesterId,
+                                section.name, section.totalCapacity))
                 );
             });
         });
@@ -67,10 +69,9 @@ public final class DataImporter {
         CourseService courseService = serviceFactory.createService(CourseService.class);
         classes.entrySet().parallelStream().forEach(it -> {
             int sectionId = mapSectionId(Integer.parseInt(it.getKey()));
-            it.getValue().parallelStream().forEach(c ->{
-                int a=courseService.addCourseSectionClass(sectionId, c.instructor.id, c.dayOfWeek,
-                        c.weekList, c.classBegin, c.classEnd, c.location);
-                    classIdMap.put(c.id, a);});
+            it.getValue().parallelStream().forEach(c ->
+                    classIdMap.put(c.id, courseService.addCourseSectionClass(sectionId, c.instructor.id, c.dayOfWeek,
+                            c.weekList, c.classBegin, c.classEnd, c.location)));
         });
     }
 

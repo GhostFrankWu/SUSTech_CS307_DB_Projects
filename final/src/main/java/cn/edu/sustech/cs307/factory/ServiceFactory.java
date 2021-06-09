@@ -1,7 +1,5 @@
 package cn.edu.sustech.cs307.factory;
 
-import cn.edu.sustech.cs307.dto.Semester;
-
 import java.util.HashMap;
 import java.util.Map;
 

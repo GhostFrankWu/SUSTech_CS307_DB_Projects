@@ -270,7 +270,7 @@ public class DoCourseService implements CourseService {
     }
 
     @Override
-    public Course getCourseBySection(int sectionId) {
+    public synchronized Course getCourseBySection(int sectionId) {
         try (Connection connection = SQLDataSource.getInstance().getSQLConnection();
              PreparedStatement stmt = connection.prepareStatement("select name from course_section where id=(?);");
              PreparedStatement SQue = connection.prepareStatement("select * from course where id=(?);")) {

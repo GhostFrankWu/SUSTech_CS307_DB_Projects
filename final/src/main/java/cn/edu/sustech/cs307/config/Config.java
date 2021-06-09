@@ -10,7 +10,7 @@ public final class Config {
 
     static {
         try {
-            properties.load(new FileInputStream("config.properties"));//properties in repo is fake
+            properties.load(new FileInputStream("config.properties"));
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -21,9 +21,8 @@ public final class Config {
             return (ServiceFactory) Class.forName(properties.getProperty("serviceFactory"))
                     .getDeclaredConstructor().newInstance();
         } catch (Exception e) {
-            e.printStackTrace();
+            throw new RuntimeException(e);
         }
-        return null;
     }
 
     public static String getJdbcUrl() {

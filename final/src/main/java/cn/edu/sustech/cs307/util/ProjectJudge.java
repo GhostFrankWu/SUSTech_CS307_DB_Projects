@@ -14,8 +14,13 @@ import java.io.IOException;
 import java.sql.Date;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
-import java.util.*;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 public final class ProjectJudge {
     private static final File searchCourse1Dir = new File("./data/searchCourse1/");
@@ -32,89 +37,39 @@ public final class ProjectJudge {
     private final UserService userService = serviceFactory.createService(UserService.class);
     private final DataImporter importer = new DataImporter();
 
-    public int testSearchCourses(File searchCourseDir) {
-        int passCount = 0;
+    private final List<CourseSearchEntry> errorCourseList = List.of(new CourseSearchEntry());
+    private final CourseTable errorTable = new CourseTable();
+
+    public EvalResult testSearchCourses(File searchCourseDir) {
+        EvalResult result = new EvalResult();
         for (File file : searchCourseDir.listFiles((dir, name) -> !name.endsWith("Result.json"))) {
             List<List<Object>> searchCourseParams = readValueFromFile(file, List.class);
-            List<List<CourseSearchEntry>> searchCourseResults = readValueFromFile(
+            List<List<CourseSearchEntry>> searchCourseExpected = readValueFromFile(
                     new File(searchCourseDir, file.getName().replace(".json", "Result.json")), List.class);
-            for (int i = 0; i < searchCourseParams.size(); i++) {
-                List<CourseSearchEntry> expected = searchCourseResults.get(i);
-                mapSearchEntryId(expected);
-                if (testSearchCourse(expected, searchCourseParams.get(i))) {
-                    passCount++;
-                }else{
-
-                }
-            }
+            searchCourseExpected.parallelStream().forEach(this::mapSearchEntryId);
+            long beforeTime = System.nanoTime();
+            List<List<CourseSearchEntry>> searchCourseResult = IntStream.range(0, searchCourseParams.size()).parallel()
+                    .mapToObj(it -> testSearchCourse(searchCourseParams.get(it)))
+                    .collect(Collectors.toUnmodifiableList());
+            result.elapsedTimeNs.addAndGet(System.nanoTime() - beforeTime);
+            result.passCount.addAndGet(IntStream.range(0, searchCourseParams.size()).parallel()
+                    .filter(it -> searchCourseExpected.get(it).equals(searchCourseResult.get(it))).count());
         }
-        return passCount;
+        return result;
     }
 
-    public boolean testSearchCourse(List<CourseSearchEntry> expected, List<Object> params) {
+    public List<CourseSearchEntry> testSearchCourse(List<Object> params) {
         try {
-            List<CourseSearchEntry> result = studentService
-                    .searchCourse((int) params.get(0), importer.mapSemesterId((int) params.get(1)),
-                            (String) params.get(2), (String) params.get(3), (String) params.get(4),
-                            (DayOfWeek) params.get(5), shortValue(params.get(6)), (List<String>) params.get(7),
-                            (StudentService.CourseType) params.get(8),
-                            (boolean) params.get(9), (boolean) params.get(10),
-                            (boolean) params.get(11), (boolean) params.get(12),
-                            (int) params.get(13), (int) params.get(14));
-            boolean r=expected.equals(result);
-            if(!r){
-                System.err.println( params.get(0)+","+ importer.mapSemesterId((int) params.get(1))+","+
-                         params.get(2)+","+ params.get(3)+","+  params.get(4)+","+
-                        (params.get(5)==null?"null":params.get(5).toString())+","+
-                        shortValue(params.get(6))+","+(params.get(7)==null?"null":params.get(7))+","+
-                         params.get(8).toString()+","+ params.get(9)+","+params.get(10)+","+params.get(11)+","+
-                        params.get(12)+","+params.get(13)+","+ params.get(14));
-                for (int i=0;i<10;i++){
-                    if(i==result.size()||i==expected.size()){
-                        System.err.println("result end at "+result.size()+" but expect end at "+expected.size());
-                        break;
-                    }
-                    if(!expected.get(i).equals(result.get(i))){
-                        System.err.println("\n==========="+i+"===========");
-                        if(!expected.get(i).sectionClasses.equals(result.get(i).sectionClasses)){
-                            System.err.println("sectionClasses");
-                            for(CourseSectionClass cs:expected.get(i).sectionClasses){
-                                System.err.print(cs.id+"-"+cs.instructor.id+"  ");
-                            }
-                            System.err.println();
-                            for(CourseSectionClass cs:result.get(i).sectionClasses){
-                                System.err.print(cs.id+"-"+cs.instructor.id+"  ");
-                            }
-                            System.err.println();
-                        }
-                        if(!expected.get(i).course.equals(result.get(i).course)){
-                            System.err.println("course");
-                            System.err.println(expected.get(i).course.name + ",");
-                            System.err.println(result.get(i).course.name+",");
-                        }
-                        if(!expected.get(i).section.equals(result.get(i).section)){
-                            System.err.println("section");
-                            System.err.println(expected.get(i).section.name+",");
-                            System.err.println(result.get(i).section.name+",");
-                        }
-                        if(!expected.get(i).conflictCourseNames.equals(result.get(i).conflictCourseNames)) {
-                            System.err.println("conflictCourseNames");
-                            for(String s:expected.get(i).conflictCourseNames){
-                                System.err.print(s+",");
-                            }
-                            System.err.println();
-                            for(String s:result.get(i).conflictCourseNames){
-                                System.err.print(s+",");
-                            }
-                            System.err.println();
-                        }
-                    }
-                }//*/
-            }
-            return r;
+            return studentService.searchCourse((int) params.get(0), importer.mapSemesterId((int) params.get(1)),
+                    (String) params.get(2), (String) params.get(3), (String) params.get(4),
+                    (DayOfWeek) params.get(5), shortValue(params.get(6)), (List<String>) params.get(7),
+                    (StudentService.CourseType) params.get(8),
+                    (boolean) params.get(9), (boolean) params.get(10),
+                    (boolean) params.get(11), (boolean) params.get(12),
+                    (int) params.get(13), (int) params.get(14));
         } catch (Throwable t) {
             t.printStackTrace();
-            return false;
+            return errorCourseList;
         }
     }
 
@@ -130,7 +85,6 @@ public final class ProjectJudge {
 
     public EnrollEvalResult testEnrollCourses(File enrollCourseDir) {
         EnrollEvalResult evalResult = new EnrollEvalResult();
-        evalResult.passCount = 0;
         evalResult.succeedSections = new ArrayList<>();
         for (File file : enrollCourseDir.listFiles((dir, name) -> !name.endsWith("Result.json"))) {
             List<List<Integer>> enrollCourseParams = readValueFromFile(file, List.class);
@@ -138,13 +92,11 @@ public final class ProjectJudge {
                     new File(enrollCourseDir, file.getName().replace(".json", "Result.json")), List.class);
             for (int i = 0; i < enrollCourseParams.size(); i++) {
                 StudentService.EnrollResult expected = enrollCourseResults.get(i);
-                StudentService.EnrollResult es=testEnrollCourse(enrollCourseParams.get(i));
-                if (expected == es) {
-                    evalResult.passCount++;
-                }else{
-                    System.err.println(enrollCourseParams.get(i).get(0)+","+importer.mapSectionId(enrollCourseParams.get(i).get(1)));
-                    System.err.println(expected);
-                    System.err.println(es);//*/
+                long beforeTime = System.nanoTime();
+                StudentService.EnrollResult result = testEnrollCourse(enrollCourseParams.get(i));
+                evalResult.elapsedTimeNs.addAndGet(System.nanoTime() - beforeTime);
+                if (expected == result) {
+                    evalResult.passCount.incrementAndGet();
                 }
                 if (expected == StudentService.EnrollResult.SUCCESS) {
                     evalResult.succeedSections.add(enrollCourseParams.get(i));
@@ -163,48 +115,50 @@ public final class ProjectJudge {
         }
     }
 
-    public int testDropEnrolledCourses(EnrollEvalResult evalResult) {
-        int passedCount = 0;
-        for (List<Integer> params : evalResult.succeedSections) {
+    public EvalResult testDropEnrolledCourses(EnrollEvalResult evalResult) {
+        EvalResult result = new EvalResult();
+        long beforeTime = System.nanoTime();
+        evalResult.succeedSections.parallelStream().forEach(it -> {
             try {
-                studentService.dropCourse(params.get(0), importer.mapSectionId(params.get(1)));
-                passedCount++;
+                studentService.dropCourse(it.get(0), importer.mapSectionId(it.get(1)));
+                result.passCount.incrementAndGet();
             } catch (IllegalStateException e) {
                 e.printStackTrace();
             }
-        }
-        return passedCount;
+        });
+        result.elapsedTimeNs.set(System.nanoTime() - beforeTime);
+        return result;
     }
 
-    public int testCourseTables(File courseTableDir) {
-        int passCount = 0;
+    public EvalResult testCourseTables(File courseTableDir) {
+        EvalResult result = new EvalResult();
         for (File file : courseTableDir.listFiles((dir, name) -> !name.endsWith("Result.json"))) {
             List<List<Integer>> courseTableParams = readValueFromFile(file, List.class);
-            List<CourseTable> courseTableResults = readValueFromFile(
+            List<CourseTable> courseTableExpected = readValueFromFile(
                     new File(courseTableDir, file.getName().replace(".json", "Result.json")), List.class);
-            for (int i = 0; i < courseTableParams.size(); i++) {
-                CourseTable expected = courseTableResults.get(i);
-                if (testCourseTable(expected, courseTableParams.get(i))) {
-                    passCount++;
-                }
-            }
+            long beforeTime = System.nanoTime();
+            List<CourseTable> courseTableResults = IntStream.range(0, courseTableParams.size()).parallel()
+                    .mapToObj(it -> testCourseTable(courseTableParams.get(it)))
+                    .collect(Collectors.toUnmodifiableList());
+            result.elapsedTimeNs.addAndGet(System.nanoTime() - beforeTime);
+            result.passCount.addAndGet(IntStream.range(0, courseTableParams.size()).parallel()
+                    .filter(it -> courseTableExpected.get(it).equals(courseTableResults.get(it))).count());
         }
-        return passCount;
+        return result;
     }
 
-    public boolean testCourseTable(CourseTable expected, List<Integer> params) {
+    public CourseTable testCourseTable(List<Integer> params) {
         try {
-            CourseTable result = studentService
-                    .getCourseTable(params.get(0), Date.valueOf(LocalDate.ofEpochDay(params.get(1))));
-            return expected.equals(result);
+            return studentService.getCourseTable(params.get(0), Date.valueOf(LocalDate.ofEpochDay(params.get(1))));
         } catch (Throwable t) {
             t.printStackTrace();
-            return false;
+            return errorTable;
         }
     }
 
-    public int testDropCourses(Map<String, Map<String, Grade>> studentCourses) {
-        AtomicInteger passCount = new AtomicInteger();
+    public EvalResult testDropCourses(Map<String, Map<String, Grade>> studentCourses) {
+        EvalResult result = new EvalResult();
+        long beforeTime = System.nanoTime();
         studentCourses.entrySet().parallelStream().forEach(grades -> {
             int student = Integer.parseInt(grades.getKey());
             grades.getValue().entrySet().parallelStream().forEach(it -> {
@@ -213,12 +167,13 @@ public final class ProjectJudge {
                     try {
                         studentService.dropCourse(student, section);
                     } catch (IllegalStateException e) {
-                        passCount.getAndIncrement();
+                        result.passCount.getAndIncrement();
                     }
                 }
             });
         });
-        return passCount.get();
+        result.elapsedTimeNs.set(System.nanoTime() - beforeTime);
+        return result;
     }
 
     private static Short shortValue(Object integer) {
@@ -282,23 +237,18 @@ public final class ProjectJudge {
         endTimeNs = System.nanoTime();
         System.out.printf("Import time usage: %.2fs\n", (endTimeNs - startTimeNs) / 1000000000.0);
         // 2. Test searchCourse1
-        startTimeNs = System.nanoTime();
-        int searchCourse1 = testSearchCourses(searchCourse1Dir);
-        endTimeNs = System.nanoTime();
-        System.out.println("Test search course 1: " + searchCourse1);
-        System.out.printf("Test search course 1 time: %.2fs\n", (endTimeNs - startTimeNs) / 1000000000.0);
+        EvalResult searchCourse1 = testSearchCourses(searchCourse1Dir);
+        System.out.println("Test search course 1: " + searchCourse1.passCount.get());
+        System.out.printf("Test search course 1 time: %.2fs\n", searchCourse1.elapsedTimeNs.get() / 1000000000.0);
         // 3. Test enrollCourse1
-        startTimeNs = System.nanoTime();
         EnrollEvalResult enrollCourse1 = testEnrollCourses(enrollCourse1Dir);
-        endTimeNs = System.nanoTime();
-        System.out.println("Test enroll course 1: " + enrollCourse1.passCount);
-        System.out.printf("Test enroll course 1 time: %.2fs\n", (endTimeNs - startTimeNs) / 1000000000.0);
+        System.out.println("Test enroll course 1: " + enrollCourse1.passCount.get());
+        System.out.printf("Test enroll course 1 time: %.2fs\n", enrollCourse1.elapsedTimeNs.get() / 1000000000.0);
         // 4. Drop all success course
-        startTimeNs = System.nanoTime();
-        int dropEnrolledCourse1 = testDropEnrolledCourses(enrollCourse1);
-        endTimeNs = System.nanoTime();
-        System.out.println("Test drop enrolled course 1: " + dropEnrolledCourse1);
-        System.out.printf("Test drop enrolled course 1 time: %.2fs\n", (endTimeNs - startTimeNs) / 1000000000.0);
+        EvalResult dropEnrolledCourse1 = testDropEnrolledCourses(enrollCourse1);
+        System.out.println("Test drop enrolled course 1: " + dropEnrolledCourse1.passCount.get());
+        System.out.printf("Test drop enrolled course 1 time: %.2fs\n",
+                dropEnrolledCourse1.elapsedTimeNs.get() / 1000000000.0);
         // 5. Import studentCourses.json
         startTimeNs = System.nanoTime();
         System.out.println("Import student courses");
@@ -306,29 +256,21 @@ public final class ProjectJudge {
         endTimeNs = System.nanoTime();
         System.out.printf("Import student courses time: %.2fs\n", (endTimeNs - startTimeNs) / 1000000000.0);
         // 6. Try to drop graded course, test if throw IllegalStateException
-        startTimeNs = System.nanoTime();
-        int dropCourse = testDropCourses(studentCourses);
-        endTimeNs = System.nanoTime();
-        System.out.println("Test drop course: " + dropCourse);
-        System.out.printf("Test drop course time: %.2fs\n", (endTimeNs - startTimeNs) / 1000000000.0);
+        EvalResult dropCourse = testDropCourses(studentCourses);
+        System.out.println("Test drop course: " + dropCourse.passCount.get());
+        System.out.printf("Test drop course time: %.2fs\n", dropCourse.elapsedTimeNs.get() / 1000000000.0);
         // 7. Test courseTable2
-        startTimeNs = System.nanoTime();
-        int courseTables2 = testCourseTables(courseTable2Dir);
-        endTimeNs = System.nanoTime();
-        System.out.println("Test course table 2: " + courseTables2);
-        System.out.printf("Test course table 2 time: %.2fs\n", (endTimeNs - startTimeNs) / 1000000000.0);
+        EvalResult courseTables2 = testCourseTables(courseTable2Dir);
+        System.out.println("Test course table 2: " + courseTables2.passCount.get());
+        System.out.printf("Test course table 2 time: %.2fs\n", courseTables2.elapsedTimeNs.get() / 1000000000.0);
         // 8. Test searchCourse2
-        startTimeNs = System.nanoTime();
-        int searchCourse2 = testSearchCourses(searchCourse2Dir);
-        endTimeNs = System.nanoTime();
-        System.out.println("Test search course 2: " + searchCourse2);
-        System.out.printf("Test search course 2 time: %.2fs\n", (endTimeNs - startTimeNs) / 1000000000.0);
+        EvalResult searchCourse2 = testSearchCourses(searchCourse2Dir);
+        System.out.println("Test search course 2: " + searchCourse2.passCount.get());
+        System.out.printf("Test search course 2 time: %.2fs\n", searchCourse2.elapsedTimeNs.get() / 1000000000.0);
         // 9. Test enrollCourse2
-        startTimeNs = System.nanoTime();
         EnrollEvalResult enrollCourse2 = testEnrollCourses(enrollCourse2Dir);
-        endTimeNs = System.nanoTime();
-        System.out.println("Test enroll course 2: " + enrollCourse2.passCount);
-        System.out.printf("Test enroll course 2 time: %.2fs\n", (endTimeNs - startTimeNs) / 1000000000.0);
+        System.out.println("Test enroll course 2: " + enrollCourse2.passCount.get());
+        System.out.printf("Test enroll course 2 time: %.2fs\n", courseTables2.elapsedTimeNs.get() / 1000000000.0);
 
         // TODO: Multi-threaded benchmark
 
@@ -354,8 +296,12 @@ public final class ProjectJudge {
         return readValueFromFile(new File("./data/" + fileName), tClass);
     }
 
-    private static class EnrollEvalResult {
-        public int passCount;
+    private static class EvalResult {
+        public AtomicLong passCount = new AtomicLong();
+        public AtomicLong elapsedTimeNs = new AtomicLong();
+    }
+
+    private static class EnrollEvalResult extends EvalResult {
         public List<List<Integer>> succeedSections;
     }
 }
