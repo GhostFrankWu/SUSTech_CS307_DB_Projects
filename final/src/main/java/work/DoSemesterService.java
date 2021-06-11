@@ -2,6 +2,8 @@ package work;
 
 import cn.edu.sustech.cs307.database.SQLDataSource;
 import cn.edu.sustech.cs307.dto.Semester;
+import cn.edu.sustech.cs307.exception.EntityNotFoundException;
+import cn.edu.sustech.cs307.exception.IntegrityViolationException;
 import cn.edu.sustech.cs307.service.SemesterService;
 
 import javax.annotation.ParametersAreNonnullByDefault;
@@ -25,13 +27,11 @@ public class DoSemesterService implements SemesterService {
             stmt.execute();
             SQue.execute();
             ResultSet result=SQue.getResultSet();
-            if(result.next()) {
-                return result.getInt(1);
-            }
+            result.next();
+            return result.getInt(1);
         } catch (SQLException e) {
-            e.printStackTrace();
+            throw new IntegrityViolationException();
         }
-        return -1;
     }
 
     @Override
@@ -41,7 +41,7 @@ public class DoSemesterService implements SemesterService {
             stmt.setInt(1, semesterId);
             stmt.execute();
         } catch (SQLException e) {
-            e.printStackTrace();
+            throw new EntityNotFoundException();
         }
     }
 
@@ -61,7 +61,7 @@ public class DoSemesterService implements SemesterService {
                 semesters.add(cur);
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            throw new EntityNotFoundException();
         }
         return semesters;
     }
@@ -73,17 +73,15 @@ public class DoSemesterService implements SemesterService {
             stmt.setInt(1,semesterId);
             stmt.execute();
             ResultSet result=stmt.getResultSet();
-            if(result.next()) {
-                Semester cur=new Semester();
-                cur.id=result.getInt(1);
-                cur.name=result.getString(2);
-                cur.begin=result.getDate(3);
-                cur.end=result.getDate(4);
-                return cur;
-            }
+            result.next();
+            Semester cur=new Semester();
+            cur.id=result.getInt(1);
+            cur.name=result.getString(2);
+            cur.begin=result.getDate(3);
+            cur.end=result.getDate(4);
+            return cur;
         } catch (SQLException e) {
-            e.printStackTrace();
+            throw new EntityNotFoundException();
         }
-        return null;
     }
 }

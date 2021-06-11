@@ -2,6 +2,8 @@ package work;
 
 import cn.edu.sustech.cs307.database.SQLDataSource;
 import cn.edu.sustech.cs307.dto.CourseSection;
+import cn.edu.sustech.cs307.exception.EntityNotFoundException;
+import cn.edu.sustech.cs307.exception.IntegrityViolationException;
 import cn.edu.sustech.cs307.service.InstructorService;
 
 import javax.annotation.ParametersAreNonnullByDefault;
@@ -22,7 +24,7 @@ public class DoInstructorService implements InstructorService {
             stmt.setInt(1, uid);
             stmt.execute();
         } catch (SQLException e) {
-            e.printStackTrace();
+            throw new IntegrityViolationException();
         }
     }
 
@@ -46,7 +48,7 @@ public class DoInstructorService implements InstructorService {
                 arrayList.add(courseSection);
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            throw new EntityNotFoundException();
         }
         return arrayList;
     }

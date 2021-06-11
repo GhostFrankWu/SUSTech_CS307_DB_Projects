@@ -2,6 +2,8 @@ package work;
 
 import cn.edu.sustech.cs307.database.SQLDataSource;
 import cn.edu.sustech.cs307.dto.Department;
+import cn.edu.sustech.cs307.exception.EntityNotFoundException;
+import cn.edu.sustech.cs307.exception.IntegrityViolationException;
 import cn.edu.sustech.cs307.service.DepartmentService;
 
 import javax.annotation.ParametersAreNonnullByDefault;
@@ -24,13 +26,11 @@ public class DoDepartmentService implements DepartmentService {
             stmt.execute();
             SQue.execute();
             ResultSet result=SQue.getResultSet();
-            if(result.next()) {
-                return result.getInt(1);
-            }
+            result.next();
+            return result.getInt(1);
         } catch (SQLException e) {
-            e.printStackTrace();
+            throw new IntegrityViolationException();
         }
-        return -1;
     }
 
     @Override
@@ -40,7 +40,7 @@ public class DoDepartmentService implements DepartmentService {
             stmt.setInt(1, departmentId);
             stmt.execute();
         } catch (SQLException e) {
-            e.printStackTrace();
+            throw new EntityNotFoundException();
         }
     }
 
@@ -58,7 +58,7 @@ public class DoDepartmentService implements DepartmentService {
                 departments.add(cur);
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            throw new EntityNotFoundException();
         }
         return departments;
     }
@@ -70,15 +70,13 @@ public class DoDepartmentService implements DepartmentService {
             stmt.setInt(1,departmentId);
             stmt.execute();
             ResultSet result=stmt.getResultSet();
-            if(result.next()) {
-                Department cur=new Department();
-                cur.id=result.getInt(1);
-                cur.name=result.getString(2);
-                return cur;
-            }
+            result.next();
+            Department cur=new Department();
+            cur.id=result.getInt(1);
+            cur.name=result.getString(2);
+            return cur;
         } catch (SQLException e) {
-            e.printStackTrace();
+            throw new EntityNotFoundException();
         }
-        return null;
     }
 }

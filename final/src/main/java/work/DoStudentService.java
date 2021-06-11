@@ -5,6 +5,8 @@ import cn.edu.sustech.cs307.dto.*;
 import cn.edu.sustech.cs307.dto.grade.Grade;
 import cn.edu.sustech.cs307.dto.grade.HundredMarkGrade;
 import cn.edu.sustech.cs307.dto.grade.PassOrFailGrade;
+import cn.edu.sustech.cs307.exception.EntityNotFoundException;
+import cn.edu.sustech.cs307.exception.IntegrityViolationException;
 import cn.edu.sustech.cs307.service.StudentService;
 
 import javax.annotation.Nullable;
@@ -27,7 +29,7 @@ public class DoStudentService implements StudentService {
             stmt.setInt(3, majorId);
             stmt.execute();
         } catch (SQLException e) {
-            e.printStackTrace();
+            throw new IntegrityViolationException();
         }
     }
 
@@ -42,7 +44,7 @@ public class DoStudentService implements StudentService {
         try (Connection connection = SQLDataSource.getInstance().getSQLConnection();
              PreparedStatement stmt = connection.prepareStatement(
                      "select * from searchCourse(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);")
-             ) {
+        ) {
             stmt.setInt(1, studentId);
             stmt.setInt(2, semesterId);
             if(searchCid!=null){
@@ -134,7 +136,7 @@ public class DoStudentService implements StudentService {
 
         try (Connection connection=SQLDataSource.getInstance().getSQLConnection();
              PreparedStatement checkCourseExists = connection.prepareStatement(
-                "select * from course_section where (id) = (?);");
+                     "select * from course_section where (id) = (?);");
              PreparedStatement checkCourseSelected = connection.prepareStatement(
                      "select * from course_select where (stu_id, course_section_id) = (?,?);");// and (grade is null or grade<60)
              PreparedStatement checkCoursePassed = connection.prepareStatement(
@@ -223,7 +225,7 @@ public class DoStudentService implements StudentService {
     public void addEnrolledCourseWithGrade(int studentId, int sectionId, @Nullable Grade grade) {
         try (Connection connection=SQLDataSource.getInstance().getSQLConnection();
              PreparedStatement enrollCourseWithGrade = connection.prepareStatement(
-                "insert into course_select (stu_id, course_section_id,grade) values (?,?,?)")){
+                     "insert into course_select (stu_id, course_section_id,grade) values (?,?,?)")){
             enrollCourseWithGrade.setInt(1, studentId);
             enrollCourseWithGrade.setInt(2, sectionId);
             if (grade != null) {
@@ -247,7 +249,7 @@ public class DoStudentService implements StudentService {
             }
             enrollCourseWithGrade.execute();
         } catch (SQLException e) {
-            e.printStackTrace();
+            throw new IntegrityViolationException();
         }
     }
 
@@ -255,7 +257,7 @@ public class DoStudentService implements StudentService {
     public void setEnrolledCourseGrade(int studentId, int sectionId, Grade grade) {
         try (Connection connection=SQLDataSource.getInstance().getSQLConnection();
              PreparedStatement setEnrollCourseWithGrade = connection.prepareStatement(
-                "update course_select set grade=(?) where (stu_id, course_class_id)=(?,?);" )) {
+                     "update course_select set grade=(?) where (stu_id, course_class_id)=(?,?);" )) {
             setEnrollCourseWithGrade.setInt(2, studentId);
             setEnrollCourseWithGrade.setInt(3, sectionId);
             if (grade instanceof HundredMarkGrade) {
@@ -299,7 +301,7 @@ public class DoStudentService implements StudentService {
                 }
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            throw new EntityNotFoundException();
         }
         return map;
     }
@@ -313,12 +315,12 @@ public class DoStudentService implements StudentService {
         }
         try (Connection connection=SQLDataSource.getInstance().getSQLConnection();
              PreparedStatement stmt = connection.prepareStatement(
-                "select instructor_id,location,last_time.cna||'['||section_name||']' ful,day_of_week,week_list,\n" +
-                        "       last_time.begin,last_time.\"end\",(?)-s.begin from\n" +
-                        "(select c.name cna,* from(select * from(select * from course_select cs join course_section c\n" +
-                        "    on c.id = cs.course_section_id and cs.stu_id=(?))sections\n" +
-                        "join course_section_class csc on course_section_id=csc.id)body join course c on body.name=c.id)last_time\n" +
-                        "join semester s on last_time.semester_id=s.id and (?)>=s.begin and (?)<=s.\"end\";")) {
+                     "select instructor_id,location,last_time.cna||'['||section_name||']' ful,day_of_week,week_list,\n" +
+                             "       last_time.begin,last_time.\"end\",(?)-s.begin from\n" +
+                             "(select c.name cna,* from(select * from(select * from course_select cs join course_section c\n" +
+                             "    on c.id = cs.course_section_id and cs.stu_id=(?))sections\n" +
+                             "join course_section_class csc on course_section_id=csc.id)body join course c on body.name=c.id)last_time\n" +
+                             "join semester s on last_time.semester_id=s.id and (?)>=s.begin and (?)<=s.\"end\";")) {
             stmt.setDate(1, date);
             stmt.setInt(2, studentId);
             stmt.setDate(3, date);
@@ -348,7 +350,7 @@ public class DoStudentService implements StudentService {
                 courseTable.table.get(DayOfWeek.valueOf(resultSet.getString(4))).add(courseTableEntry);
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            throw new EntityNotFoundException();
         }
         return courseTable;
     }
@@ -395,7 +397,7 @@ public class DoStudentService implements StudentService {
                 return cur;
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            throw new EntityNotFoundException();
         }
         return null;
     }

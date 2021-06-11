@@ -3,6 +3,8 @@ package work;
 import cn.edu.sustech.cs307.database.SQLDataSource;
 import cn.edu.sustech.cs307.dto.Department;
 import cn.edu.sustech.cs307.dto.Major;
+import cn.edu.sustech.cs307.exception.EntityNotFoundException;
+import cn.edu.sustech.cs307.exception.IntegrityViolationException;
 import cn.edu.sustech.cs307.service.MajorService;
 
 import javax.annotation.ParametersAreNonnullByDefault;
@@ -24,13 +26,11 @@ public class DoMajorService implements MajorService {
             stmt.execute();
             SQue.execute();
             ResultSet result=SQue.getResultSet();
-            if(result.next()) {
-                return result.getInt(1);
-            }
+            result.next();
+            return result.getInt(1);
         } catch (SQLException e) {
-            e.printStackTrace();
+            throw new IntegrityViolationException();
         }
-        return -1;
     }
 
     @Override
@@ -40,7 +40,7 @@ public class DoMajorService implements MajorService {
             stmt.setInt(1, majorId);
             stmt.execute();
         } catch (SQLException e) {
-            e.printStackTrace();
+            throw new EntityNotFoundException();
         }
     }
 
@@ -55,8 +55,8 @@ public class DoMajorService implements MajorService {
             while(result.next()) {
                 Major cur=new Major();
                 cur.id=result.getInt(1);
-                cur.name=result.getString(3);
-                SQue.setInt(1, result.getInt(2));
+                cur.name=result.getString(2);
+                SQue.setInt(1, result.getInt(3));
                 SQue.execute();
                 ResultSet res=SQue.getResultSet();
                 Department department=new Department();
@@ -66,7 +66,7 @@ public class DoMajorService implements MajorService {
                 majors.add(cur);
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            throw new EntityNotFoundException();
         }
         return majors;
     }
@@ -79,23 +79,21 @@ public class DoMajorService implements MajorService {
             stmt.setInt(1,majorId);
             stmt.execute();
             ResultSet result=stmt.getResultSet();
-            if(result.next()) {
-                Major cur=new Major();
-                cur.id=result.getInt(1);
-                cur.name=result.getString(3);
-                SQue.setInt(1, result.getInt(2));
-                SQue.execute();
-                ResultSet res=SQue.getResultSet();
-                Department department=new Department();
-                department.id=res.getInt(1);
-                department.name=res.getString(2);
-                cur.department=department;
-                return cur;
-            }
+            result.next();
+            Major cur=new Major();
+            cur.id=result.getInt(1);
+            cur.name=result.getString(2);
+            SQue.setInt(1, result.getInt(3));
+            SQue.execute();
+            ResultSet res=SQue.getResultSet();
+            Department department=new Department();
+            department.id=res.getInt(1);
+            department.name=res.getString(2);
+            cur.department=department;
+            return cur;
         } catch (SQLException e) {
-            e.printStackTrace();
+            throw new EntityNotFoundException();
         }
-        return null;
     }
 
     @Override
@@ -108,7 +106,7 @@ public class DoMajorService implements MajorService {
             stmt.setBoolean(3, false);
             stmt.execute();
         } catch (SQLException e) {
-            e.printStackTrace();
+            throw new IntegrityViolationException();
         }
     }
 
@@ -122,7 +120,7 @@ public class DoMajorService implements MajorService {
             stmt.setBoolean(3, true);
             stmt.execute();
         } catch (SQLException e) {
-            e.printStackTrace();
+            throw new IntegrityViolationException();
         }
     }
 }

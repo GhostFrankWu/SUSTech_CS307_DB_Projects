@@ -3,6 +3,8 @@ package work;
 import cn.edu.sustech.cs307.database.SQLDataSource;
 import cn.edu.sustech.cs307.dto.Instructor;
 import cn.edu.sustech.cs307.dto.User;
+import cn.edu.sustech.cs307.exception.EntityNotFoundException;
+import cn.edu.sustech.cs307.exception.IntegrityViolationException;
 import cn.edu.sustech.cs307.service.UserService;
 
 import java.sql.Connection;
@@ -30,13 +32,11 @@ public class DoUserService implements UserService {
             stmt.execute();
             SQue.execute();
             ResultSet result=SQue.getResultSet();
-            if(result.next()) {
-                return result.getInt(1);
-            }
+            result.next();
+            return result.getInt(1);
         } catch (SQLException e) {
-            e.printStackTrace();
+            throw new IntegrityViolationException();
         }
-        return -1;
     }
 
     @Override
@@ -46,7 +46,7 @@ public class DoUserService implements UserService {
             stmt.setInt(1, userId);
             stmt.execute();
         } catch (SQLException e) {
-            e.printStackTrace();
+            throw new EntityNotFoundException();
         }
     }
 
@@ -60,11 +60,11 @@ public class DoUserService implements UserService {
             while(result.next()) {
                 User cur=new Instructor();
                 cur.id=result.getInt(1);
-                cur.fullName=result.getString(2);
+                cur.fullName=result.getString(2)+((int)(cur.fullName.charAt(0))<256?" ":"")+result.getString(3);
                 users.add(cur);
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            throw new EntityNotFoundException();
         }
         return users;
     }
@@ -76,19 +76,17 @@ public class DoUserService implements UserService {
             stmt.setInt(1,userId);
             stmt.execute();
             ResultSet result=stmt.getResultSet();
-            if(result.next()) {
-                User cur=new Instructor();
-                cur.id=result.getInt(1);
-                cur.fullName=result.getString(2);
-                if((int)(cur.fullName.charAt(0))<256){
-                    cur.fullName+=" ";
-                }
-                cur.fullName+=result.getString(3);
-                return cur;
+            result.next();
+            User cur=new Instructor();
+            cur.id=result.getInt(1);
+            cur.fullName=result.getString(2);
+            if((int)(cur.fullName.charAt(0))<256){
+                cur.fullName+=" ";
             }
+            cur.fullName+=result.getString(3);
+            return cur;
         } catch (SQLException e) {
-            e.printStackTrace();
+            throw new EntityNotFoundException();
         }
-        return null;
     }
 }
