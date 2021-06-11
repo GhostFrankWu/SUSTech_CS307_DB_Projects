@@ -21,12 +21,14 @@
 - 按周次查询课程表7.密码修改、登出
 - 教师显示所任课程和所带班级学生，劝退所带学生
 - 管理员执行 sql 语句（非最高权限），修改任意用户密码
-### 选课系统主界面
+### 登陆界面
 ![m](https://github.com/GhostFrankWu/SUSTech_CS307_DB_Projects/blob/main/sc/1.png)
-### 课程表
+### 选课系统主界面
 ![m](https://github.com/GhostFrankWu/SUSTech_CS307_DB_Projects/blob/main/sc/2.png)
-### 权限控制
+### 课程表
 ![m](https://github.com/GhostFrankWu/SUSTech_CS307_DB_Projects/blob/main/sc/3.png)
+### 权限控制
+![m](https://github.com/GhostFrankWu/SUSTech_CS307_DB_Projects/blob/main/sc/4.png)
 ### 更多详情请[查看pdf报告](https://github.com/GhostFrankWu/SUSTech_CS307_DB_Projects/blob/main/mid/%E6%8A%A5%E5%91%8A.pdf)
 
 
