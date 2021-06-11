@@ -6,6 +6,8 @@ import cn.edu.sustech.cs307.dto.prerequisite.AndPrerequisite;
 import cn.edu.sustech.cs307.dto.prerequisite.CoursePrerequisite;
 import cn.edu.sustech.cs307.dto.prerequisite.OrPrerequisite;
 import cn.edu.sustech.cs307.dto.prerequisite.Prerequisite;
+import cn.edu.sustech.cs307.exception.EntityNotFoundException;
+import cn.edu.sustech.cs307.exception.IntegrityViolationException;
 import cn.edu.sustech.cs307.service.CourseService;
 
 import javax.annotation.Nullable;
@@ -40,9 +42,8 @@ public class DoCourseService implements CourseService {
             NQue.execute();
             return result.getInt(1);
         } catch (SQLException  e) {
-            e.printStackTrace();
+            throw new IntegrityViolationException();
         }
-        return -1;
     }
 
     private int addAndOrPrerequisite(ArrayList<Integer> prerequisite,boolean isAndRelation) {
@@ -63,9 +64,8 @@ public class DoCourseService implements CourseService {
             NQue.execute();
             return result.getInt(1);
         } catch (SQLException  e) {
-            e.printStackTrace();
+            throw new IntegrityViolationException();
         }
-        return -1;
     }
 
     private int handlePrerequisite(Prerequisite prerequisite){
@@ -100,6 +100,7 @@ public class DoCourseService implements CourseService {
      * @param grading      the grading type of course
      * @param prerequisite The root of a {@link cn.edu.sustech.cs307.dto.prerequisite.Prerequisite} expression tree.
      */
+    @Override
     public void addCourse(String courseId, String courseName, int credit, int classHour,
                           Course.CourseGrading grading, @Nullable Prerequisite prerequisite) {
         try (Connection connection = SQLDataSource.getInstance().getSQLConnection();
@@ -117,7 +118,7 @@ public class DoCourseService implements CourseService {
             }
             stmt.execute();
         } catch (SQLException e) {
-            e.printStackTrace();
+            throw new IntegrityViolationException();
         }
     }
 
@@ -148,7 +149,7 @@ public class DoCourseService implements CourseService {
                 return result.getInt(1);
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            throw new IntegrityViolationException();
         }
         return -1;
     }
@@ -184,7 +185,7 @@ public class DoCourseService implements CourseService {
                 return result.getInt(1);
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            throw new IntegrityViolationException();
         }
         return -1;
     }
@@ -197,7 +198,7 @@ public class DoCourseService implements CourseService {
             stmt.setString(1, courseId);
             stmt.execute();
         } catch (SQLException e) {
-            e.printStackTrace();
+            throw new EntityNotFoundException();
         }
     }
 
@@ -209,7 +210,7 @@ public class DoCourseService implements CourseService {
             stmt.setInt(1, sectionId);
             stmt.execute();
         } catch (SQLException e) {
-            e.printStackTrace();
+            throw new EntityNotFoundException();
         }
     }
 
@@ -221,7 +222,7 @@ public class DoCourseService implements CourseService {
             stmt.setInt(1, classId);
             stmt.execute();
         } catch (SQLException e) {
-            e.printStackTrace();
+            throw new EntityNotFoundException();
         }
     }
 
@@ -238,10 +239,11 @@ public class DoCourseService implements CourseService {
                 cur.name=result.getString(2);
                 cur.credit=result.getInt(3);
                 cur.classHour=result.getInt(4);
+                cur.grading=result.getBoolean(5)?HUNDRED_MARK_SCORE:PASS_OR_FAIL;
                 courses.add(cur);
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            throw new EntityNotFoundException();
         }
         return courses;
     }
@@ -264,7 +266,7 @@ public class DoCourseService implements CourseService {
                 courseSections.add(cur);
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            throw new EntityNotFoundException();
         }
         return courseSections;
     }
@@ -277,23 +279,21 @@ public class DoCourseService implements CourseService {
             stmt.setInt(1, sectionId);
             stmt.execute();
             ResultSet result=stmt.getResultSet();
-            if(result.next()) {
-                SQue.setString(1, result.getString(1));
-                SQue.execute();
-                ResultSet res=SQue.getResultSet();
-                res.next();
-                Course cur=new Course();
-                cur.id=res.getString(1);
-                cur.name=res.getString(2);
-                cur.credit=res.getInt(3);
-                cur.classHour=res.getInt(4);
-                cur.grading=res.getBoolean(5)?HUNDRED_MARK_SCORE:PASS_OR_FAIL;
-                return cur;
-            }
+            result.next();
+            SQue.setString(1, result.getString(1));
+            SQue.execute();
+            ResultSet res=SQue.getResultSet();
+            res.next();
+            Course cur=new Course();
+            cur.id=res.getString(1);
+            cur.name=res.getString(2);
+            cur.credit=res.getInt(3);
+            cur.classHour=res.getInt(4);
+            cur.grading=res.getBoolean(5)?HUNDRED_MARK_SCORE:PASS_OR_FAIL;
+            return cur;
         } catch (SQLException e) {
-            e.printStackTrace();
+            throw new EntityNotFoundException();
         }
-        return null;
     }
 
     @Override
@@ -324,7 +324,7 @@ public class DoCourseService implements CourseService {
                 courseSectionClasses.add(cur);
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            throw new EntityNotFoundException();
         }
         return courseSectionClasses;
     }
@@ -336,23 +336,28 @@ public class DoCourseService implements CourseService {
             stmt.setInt(1,classId);
             stmt.execute();
             ResultSet result=stmt.getResultSet();
-            if(result.next()) {
+            result.next();
                 CourseSection cur=new CourseSection();
                 cur.id=result.getInt(2);
                 cur.name=result.getString(4);
                 cur.totalCapacity=result.getInt(5);
                 cur.leftCapacity=result.getInt(6);
                 return cur;
-            }
         } catch (SQLException e) {
-            e.printStackTrace();
+            throw new EntityNotFoundException();
         }
-        return null;
     }
 
     @Override
     public List<Student> getEnrolledStudentsInSemester(String courseId, int semesterId) {
-        return null;
+        ArrayList<Student> students = new ArrayList<>();
+        try (Connection connection = SQLDataSource.getInstance().getSQLConnection();
+             PreparedStatement stmt = connection.prepareStatement("select * from course_section where id = (?);")) {
+
+            return students;
+        } catch (SQLException e) {
+            throw new EntityNotFoundException();
+        }
     }
 
 
