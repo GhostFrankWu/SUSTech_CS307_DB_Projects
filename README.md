@@ -1,6 +1,9 @@
 # SUSTech_CS307_DB_Projects
-## 期中project内容：选课系统
-[查看pdf报告](https://github.com/GhostFrankWu/SUSTech_CS307_DB_Projects/blob/main/mid/%E6%8A%A5%E5%91%8A.pdf)
+## 期末project内容：重构选课系统后端及中间件
+- **Score(93/100)**  
+## 期中project内容：选课系统  
+- **Score(98/100)**  
+- [查看pdf报告](https://github.com/GhostFrankWu/SUSTech_CS307_DB_Projects/blob/main/mid/%E6%8A%A5%E5%91%8A.pdf)
 ### 数据表设计包括：
 - 每个表要有外键，或者有其他表的外键指向  
 - 对于表之间的外键方向，不能有环  
@@ -32,5 +35,4 @@
 ### 更多详情请[查看pdf报告](https://github.com/GhostFrankWu/SUSTech_CS307_DB_Projects/blob/main/mid/%E6%8A%A5%E5%91%8A.pdf)
 
 
-## 期末project内容：重构选课系统后端及中间件
 
